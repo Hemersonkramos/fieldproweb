@@ -1,0 +1,165 @@
+@import "tailwindcss";
+:root {
+  font-family: Manrope, "Segoe UI", sans-serif;
+  color: #0f172a;
+  background: #f1f5f9;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, rgba(191, 219, 254, 0.45), transparent 28%),
+    linear-gradient(180deg, #f8fbfd 0%, #eef4f8 100%);
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+.input {
+  width: 100%;
+  border: 1px solid #d6e2ec;
+  border-radius: 999px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  outline: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: #0f172a;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.input:focus {
+  border-color: #0f5f84;
+  box-shadow: 0 0 0 3px rgba(15, 95, 132, 0.12);
+}
+
+.mapa-bg {
+  background-image: radial-gradient(#7da6c4 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.leaflet-container,
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom,
+.leaflet-control {
+  z-index: 1 !important;
+}
+
+.fieldpro-pin {
+  background: transparent;
+  border: 0;
+}
+
+.fieldpro-pin::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50% 50% 50% 0;
+  transform: translateX(-50%) rotate(-45deg);
+  box-shadow: 0 5px 12px rgba(15, 23, 42, 0.18);
+}
+
+.fieldpro-pin__inner {
+  position: absolute;
+  left: 50%;
+  top: 7px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  background: white;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.16);
+}
+
+.fieldpro-pin--light-green::before {
+  background: #7ddf8f;
+}
+
+.fieldpro-point-pin {
+  background: transparent;
+  border: 0;
+}
+
+.fieldpro-point-pin::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #0f172a;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.78), 0 6px 16px rgba(15, 23, 42, 0.26);
+}
+
+.fieldpro-point-pin__inner {
+  position: absolute;
+  inset: 6px;
+  border-radius: 999px;
+  background: #38bdf8;
+}
+
+.fieldpro-team-dot {
+  background: transparent;
+  border: 0;
+}
+
+.fieldpro-team-dot__core {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9), 0 6px 16px rgba(15, 23, 42, 0.24);
+}
+
+.fieldpro-team-dot--online .fieldpro-team-dot__core {
+  background: #16a34a;
+}
+
+.fieldpro-team-dot--offline .fieldpro-team-dot__core {
+  background: #dc2626;
+}
+
+.fieldpro-team-dot__pulse {
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.22);
+  animation: fieldpro-pulse 1.8s ease-out infinite;
+}
+
+@keyframes fieldpro-pulse {
+  0% {
+    transform: scale(0.72);
+    opacity: 0.9;
+  }
+
+  70% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}

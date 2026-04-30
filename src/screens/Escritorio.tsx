@@ -154,6 +154,7 @@ type EquipeApi = {
   veiculo: string | null;
   placa: string | null;
   status: string | null;
+  online?: boolean | number | string | null;
   ultima_latitude: number | string | null;
   ultima_longitude: number | string | null;
 };
@@ -499,13 +500,24 @@ function formatarPrazo(prazo: string) {
     return "-";
   }
 
-  const data = new Date(prazo);
+  const data = parsePrazoLocal(prazo);
 
-  if (Number.isNaN(data.getTime())) {
+  if (!data) {
     return prazo;
   }
 
   return data.toLocaleDateString("pt-BR");
+}
+
+function parsePrazoLocal(prazo: string) {
+  const [ano, mes, dia] = prazo.slice(0, 10).split("-").map(Number);
+
+  if (!ano || !mes || !dia) {
+    const data = new Date(prazo);
+    return Number.isNaN(data.getTime()) ? null : data;
+  }
+
+  return new Date(ano, mes - 1, dia);
 }
 
 function diferencaDiasPrazo(prazo: string) {
@@ -514,9 +526,9 @@ function diferencaDiasPrazo(prazo: string) {
   }
 
   const hoje = new Date();
-  const dataPrazo = new Date(prazo);
+  const dataPrazo = parsePrazoLocal(prazo);
 
-  if (Number.isNaN(dataPrazo.getTime())) {
+  if (!dataPrazo) {
     return null;
   }
 
@@ -596,7 +608,7 @@ function normalizarDemandas(dados: DemandaApi[]) {
 
 function normalizarEquipes(dados: EquipeApi[]) {
   return dados.map((equipe) => {
-    const online = equipe.status === "Ativo";
+    const online = equipe.online === true || equipe.online === 1 || equipe.online === "1";
     const latitude = parseNumero(equipe.ultima_latitude);
     const longitude = parseNumero(equipe.ultima_longitude);
 
@@ -1218,7 +1230,7 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
       setDemandasBase((atual) =>
         atual.map((item) => (item.id === demandaEmEdicao.id ? demandaAtualizada : item))
       );
-      setDemandaEmEdicao(demandaAtualizada);
+      fecharEdicao();
       window.alert("Solicitação atualizada com sucesso.");
     } catch (error) {
       console.error("Erro ao salvar solicitação:", error);
@@ -1354,34 +1366,45 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
   useEffect(() => {
     let ativo = true;
 
-    void buscarDadosEscritorio()
-      .then((dados) => {
-        if (!ativo) {
-          return;
-        }
+    const carregarPainel = (mostrarCarregando: boolean) => {
+      if (mostrarCarregando) {
+        setCarregando(true);
+      }
 
-        setDemandasBase(dados.demandas);
-        setEquipes(dados.equipes);
-        setDashboard(dados.dashboard);
-        setErro("");
-      })
-      .catch((error) => {
-        console.error("Erro ao carregar dados do escritorio:", error);
+      void buscarDadosEscritorio()
+        .then((dados) => {
+          if (!ativo) {
+            return;
+          }
 
-        if (!ativo) {
-          return;
-        }
+          setDemandasBase(dados.demandas);
+          setEquipes(dados.equipes);
+          setDashboard(dados.dashboard);
+          setErro("");
+        })
+        .catch((error) => {
+          console.error("Erro ao carregar dados do escritorio:", error);
 
-        setErro("Erro ao carregar dados da API.");
-      })
-      .finally(() => {
-        if (ativo) {
-          setCarregando(false);
-        }
-      });
+          if (!ativo) {
+            return;
+          }
+
+          setErro("Erro ao carregar dados da API.");
+        })
+        .finally(() => {
+          if (ativo && mostrarCarregando) {
+            setCarregando(false);
+          }
+        });
+    };
+
+    carregarPainel(true);
+
+    const intervalo = window.setInterval(() => carregarPainel(false), 60 * 1000);
 
     return () => {
       ativo = false;
+      window.clearInterval(intervalo);
     };
   }, []);
 

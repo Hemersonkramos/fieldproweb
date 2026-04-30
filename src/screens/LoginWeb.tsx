@@ -141,7 +141,7 @@ export default function LoginWeb({ entrar }: Props) {
             borderRadius: 10,
           }}
         >
-          “insira seus dados
+        insira seus dados
         </div>
       </div>
     </div>

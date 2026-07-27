@@ -197,6 +197,27 @@ export default function ProducaoWeb({ voltar }: Props) {
     };
   }, [dataFinal, dataInicial]);
 
+  useEffect(() => {
+    let ativo = true;
+
+    const intervalo = window.setInterval(() => {
+      void buscarProducao(dataInicial, dataFinal)
+        .then((producao) => {
+          if (ativo) {
+            setDados(producao);
+          }
+        })
+        .catch((error) => {
+          console.error("Erro ao atualizar status das equipes:", error);
+        });
+    }, 30 * 1000);
+
+    return () => {
+      ativo = false;
+      window.clearInterval(intervalo);
+    };
+  }, [dataFinal, dataInicial]);
+
   const equipeDestaque = useMemo(() => {
     if (dados.length === 0) {
       return null;

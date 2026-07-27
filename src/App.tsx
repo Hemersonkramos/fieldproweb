@@ -15,9 +15,21 @@ export type UsuarioWeb = {
   token: string;
 };
 
+function criarUsuarioDemo(): UsuarioWeb {
+  return {
+    id: 0,
+    nome_completo: "Modo desenvolvimento",
+    user: "dev",
+    perfil: "admin",
+    token: "dev-token",
+  };
+}
+
 export default function App() {
-  const [tela, setTela] = useState<Tela>("login");
-  const [usuario, setUsuario] = useState<UsuarioWeb | null>(null);
+  const [tela, setTela] = useState<Tela>(() => (import.meta.env.DEV ? "escritorio" : "login"));
+  const [usuario, setUsuario] = useState<UsuarioWeb | null>(() =>
+    import.meta.env.DEV ? criarUsuarioDemo() : null,
+  );
 
   return (
     <>
@@ -39,8 +51,8 @@ export default function App() {
           usuario={usuario}
           sair={() => {
             limparToken();
-            setUsuario(null);
-            setTela("login");
+            setUsuario(import.meta.env.DEV ? criarUsuarioDemo() : null);
+            setTela(import.meta.env.DEV ? "escritorio" : "login");
           }}
         />
       )}

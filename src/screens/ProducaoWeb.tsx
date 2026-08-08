@@ -274,8 +274,7 @@ export default function ProducaoWeb({ voltar }: Props) {
                 Producao e desempenho das equipes
               </h1>
               <p className="mt-3 max-w-xl text-sm leading-6 text-sky-50/90 sm:text-base">
-                Painel para comparar equipes, visualizar rotas registradas e ler a
-                produtividade do dia com muito mais clareza.
+                Resumo das equipes, rotas e produtividade do dia.
               </p>
 
               <div className="mt-5 flex flex-wrap gap-3 text-sm">

@@ -37,6 +37,7 @@ type Props = {
 type StatusDemanda = "Andamento" | "Concluida" | "Devolvida" | "Finalizada";
 type PrioridadeDemanda = "Normal" | "Emergencial";
 type OpcaoStatusFiltro = "Andamento" | "Concluida" | "Devolvida" | "Finalizada";
+type OpcaoTipoFiltro = PrioridadeDemanda;
 
 type DemandaApi = {
   id: number;
@@ -416,6 +417,7 @@ const STATUS_FILTRO_OPCOES: OpcaoStatusFiltro[] = [
   "Devolvida",
   "Finalizada",
 ];
+const TIPO_FILTRO_OPCOES: OpcaoTipoFiltro[] = ["Normal", "Emergencial"];
 
 const iconeEquipeOnline = L.divIcon({
   className: "fieldpro-team-dot fieldpro-team-dot--online",
@@ -709,8 +711,10 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
 
   const [statusFiltro, setStatusFiltro] = useState<OpcaoStatusFiltro[]>([]);
   const [statusFiltroAberto, setStatusFiltroAberto] = useState(false);
-  const [tipoFiltro, setTipoFiltro] = useState("Todos");
-  const [equipeFiltro, setEquipeFiltro] = useState("Todas");
+  const [tipoFiltro, setTipoFiltro] = useState<OpcaoTipoFiltro[]>([]);
+  const [tipoFiltroAberto, setTipoFiltroAberto] = useState(false);
+  const [equipeFiltro, setEquipeFiltro] = useState<string[]>([]);
+  const [equipeFiltroAberto, setEquipeFiltroAberto] = useState(false);
   const [busca, setBusca] = useState("");
   const [acaoEmAndamentoId, setAcaoEmAndamentoId] = useState<number | null>(null);
   const [demandaEmEdicao, setDemandaEmEdicao] = useState<Demanda | null>(null);
@@ -1189,6 +1193,20 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
     );
   }
 
+  function alternarTipoFiltro(tipo: OpcaoTipoFiltro) {
+    setTipoFiltro((atual) =>
+      atual.includes(tipo) ? atual.filter((item) => item !== tipo) : [...atual, tipo]
+    );
+  }
+
+  function alternarEquipeFiltro(equipe: string) {
+    setEquipeFiltro((atual) =>
+      atual.includes(equipe)
+        ? atual.filter((item) => item !== equipe)
+        : [...atual, equipe]
+    );
+  }
+
   async function salvarEdicao() {
     if (!demandaEmEdicao || !formulario) {
       return;
@@ -1415,8 +1433,11 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
       .filter((demanda) => {
         const filtroStatus =
           statusFiltro.length === 0 || statusFiltro.includes(demanda.status as OpcaoStatusFiltro);
-        const filtroTipo = tipoFiltro === "Todos" || demanda.prioridade === tipoFiltro;
-        const filtroEquipe = equipeFiltro === "Todas" || demanda.equipe === equipeFiltro;
+        const filtroTipo =
+          tipoFiltro.length === 0 || tipoFiltro.includes(demanda.prioridade);
+        const filtroEquipe =
+          equipeFiltro.length === 0 ||
+          (demanda.equipe !== null && equipeFiltro.includes(demanda.equipe));
         const filtroBusca =
           termoBusca.length === 0 ||
           demanda.solicitacao.toLowerCase().includes(termoBusca) ||
@@ -1512,8 +1533,7 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
                 Escritorio FieldPro
               </h1>
               <p className="mt-3 max-w-xl text-sm leading-6 text-cyan-50/90 sm:text-base">
-                Panorama das equipes, demandas em campo e pontos de atencao em um
-                painel unico, mais limpo e mais facil de operar.
+                Acompanhamento de equipes, demandas e serviços em campo.
               </p>
 
               <div className="mt-5 flex flex-wrap gap-3 text-sm">
@@ -1523,47 +1543,51 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={irParaProducao}
-                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white shadow-lg backdrop-blur transition hover:bg-white/16"
-              >
-                <Route size={17} />
-                Producao e rotas
-              </button>
-
-              <button
-                onClick={abrirSolicitacao}
-                className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-[#083e5f] shadow-lg transition hover:bg-cyan-50"
-              >
-                <Plus size={17} />
-                Abrir solicitacao
-              </button>
-
-              <button
-                onClick={abrirSolicitacaoLote}
-                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white shadow-lg backdrop-blur transition hover:bg-white/16"
-              >
-                <FileText size={17} />
-                Criar em lote
-              </button>
-
-              {usuario?.perfil === "admin" && irParaAdmin && (
+            <div className="flex w-full flex-col gap-3 lg:w-auto lg:items-end">
+              <div className="flex flex-wrap gap-3 lg:justify-end">
                 <button
-                  onClick={irParaAdmin}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white shadow-lg backdrop-blur transition hover:bg-white/16"
+                  onClick={abrirSolicitacao}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-[#083e5f] shadow-lg transition hover:bg-cyan-50"
                 >
-                  <Crown size={16} />
-                  Admin
+                  <Plus size={17} />
+                  Abrir solicitação
                 </button>
-              )}
 
-              <button
-                onClick={sair}
-                className="rounded-full border border-white/18 px-5 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/10"
-              >
-                Sair
-              </button>
+                <button
+                  onClick={abrirSolicitacaoLote}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 text-sm font-semibold text-white shadow-lg backdrop-blur transition hover:bg-white/16"
+                >
+                  <FileText size={17} />
+                  Criar em lote
+                </button>
+
+                <button
+                  onClick={irParaProducao}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 text-sm font-semibold text-white shadow-lg backdrop-blur transition hover:bg-white/16"
+                >
+                  <Route size={17} />
+                  Produção e rotas
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-2 lg:justify-end">
+                {usuario?.perfil === "admin" && irParaAdmin && (
+                  <button
+                    onClick={irParaAdmin}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-white/20 bg-[#06263f]/30 px-4 text-sm font-semibold text-white transition hover:bg-white/14"
+                  >
+                    <Crown size={16} />
+                    Administração
+                  </button>
+                )}
+
+                <button
+                  onClick={sair}
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-white/18 px-4 text-sm font-semibold text-white/90 transition hover:bg-white/10"
+                >
+                  Sair
+                </button>
+              </div>
             </div>
           </div>
         </header>
@@ -1602,14 +1626,16 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
         <section className="relative z-20 rounded-[28px] border border-slate-200/70 bg-white/80 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur">
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Filtros inteligentes</h2>
+              <h2 className="text-lg font-bold text-slate-900">Filtros</h2>
               <p className="text-sm text-slate-500">
-                Refine o mapa e a listagem com status, tipo, equipe e busca rapida.
+                Filtre por status, tipo, equipe ou nome.
               </p>
             </div>
 
             <div className="rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-600">
-              {demandas.length} demanda(s) visivel(is)
+              {demandas.length === 1
+                ? "1 demanda exibida"
+                : `${demandas.length} demandas exibidas`}
             </div>
           </div>
 
@@ -1617,7 +1643,11 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
             <div className="relative z-30">
               <button
                 type="button"
-                onClick={() => setStatusFiltroAberto((atual) => !atual)}
+                onClick={() => {
+                  setTipoFiltroAberto(false);
+                  setEquipeFiltroAberto(false);
+                  setStatusFiltroAberto((atual) => !atual);
+                }}
                 className="input flex w-full items-center justify-between bg-slate-50 text-left"
               >
                 <span className="truncate">
@@ -1655,25 +1685,109 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
               ) : null}
             </div>
 
-            <select className="input bg-slate-50" value={tipoFiltro} onChange={(e) => setTipoFiltro(e.target.value)}>
-              <option value="Todos">Todos os tipos</option>
-              <option value="Normal">Normal</option>
-              <option value="Emergencial">Emergencial</option>
-            </select>
+            <div className="relative z-20">
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFiltroAberto(false);
+                  setEquipeFiltroAberto(false);
+                  setTipoFiltroAberto((atual) => !atual);
+                }}
+                className="input flex w-full items-center justify-between bg-slate-50 text-left"
+              >
+                <span className="truncate">
+                  {tipoFiltro.length === 0 ? "Todos os tipos" : tipoFiltro.join(", ")}
+                </span>
+                <span className="text-slate-400">{tipoFiltroAberto ? "▲" : "▼"}</span>
+              </button>
 
-            <select className="input bg-slate-50" value={equipeFiltro} onChange={(e) => setEquipeFiltro(e.target.value)}>
-              <option value="Todas">Todas as equipes</option>
-              {equipes.map((equipe) => (
-                <option key={equipe.id} value={equipe.nome}>
-                  {equipe.nome}
-                </option>
-              ))}
-            </select>
+              {tipoFiltroAberto ? (
+                <div className="absolute left-0 right-0 z-[120] mt-2 rounded-[22px] border border-slate-200 bg-white p-2 shadow-[0_20px_50px_rgba(15,23,42,0.16)]">
+                  <button
+                    type="button"
+                    onClick={() => setTipoFiltro([])}
+                    className="flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+                  >
+                    <span>Todos os tipos</span>
+                    {tipoFiltro.length === 0 ? (
+                      <Check size={15} className="text-sky-600" />
+                    ) : null}
+                  </button>
+
+                  {TIPO_FILTRO_OPCOES.map((tipo) => (
+                    <label
+                      key={tipo}
+                      className="flex cursor-pointer items-center justify-between rounded-2xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+                    >
+                      <span>{tipo}</span>
+                      <input
+                        type="checkbox"
+                        checked={tipoFiltro.includes(tipo)}
+                        onChange={() => alternarTipoFiltro(tipo)}
+                        className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                      />
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="relative z-10">
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFiltroAberto(false);
+                  setTipoFiltroAberto(false);
+                  setEquipeFiltroAberto((atual) => !atual);
+                }}
+                className="input flex w-full items-center justify-between bg-slate-50 text-left"
+              >
+                <span className="truncate">
+                  {equipeFiltro.length === 0
+                    ? "Todas as equipes"
+                    : equipeFiltro.join(", ")}
+                </span>
+                <span className="text-slate-400">
+                  {equipeFiltroAberto ? "▲" : "▼"}
+                </span>
+              </button>
+
+              {equipeFiltroAberto ? (
+                <div className="absolute left-0 right-0 z-[120] mt-2 max-h-72 overflow-y-auto rounded-[22px] border border-slate-200 bg-white p-2 shadow-[0_20px_50px_rgba(15,23,42,0.16)]">
+                  <button
+                    type="button"
+                    onClick={() => setEquipeFiltro([])}
+                    className="flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+                  >
+                    <span>Todas as equipes</span>
+                    {equipeFiltro.length === 0 ? (
+                      <Check size={15} className="text-sky-600" />
+                    ) : null}
+                  </button>
+
+                  {equipes.map((equipe) => (
+                    <label
+                      key={equipe.id}
+                      className="flex cursor-pointer items-center justify-between rounded-2xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+                    >
+                      <span className="truncate pr-3">{equipe.nome}</span>
+                      <input
+                        type="checkbox"
+                        checked={equipeFiltro.includes(equipe.nome)}
+                        onChange={() => alternarEquipeFiltro(equipe.nome)}
+                        className="h-4 w-4 shrink-0 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                      />
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+            </div>
 
             <div className="relative">
               <Search size={16} className="absolute left-4 top-3.5 text-slate-400" />
               <input
                 className="input w-full bg-slate-50 pl-10"
+                style={{ paddingLeft: 42 }}
                 placeholder="Buscar solicitacao ou cliente"
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}

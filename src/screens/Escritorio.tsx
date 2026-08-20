@@ -1970,7 +1970,7 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
                     <th className="px-2 py-4">Equipe</th>
                     <th className="px-2 py-4">Status</th>
                     <th className="px-2 py-4">Prioridade</th>
-                    <th className="px-2 py-4">Prazo</th>
+                    <th className="whitespace-nowrap px-2 py-4">Prazo</th>
                     <th className="px-2 py-4">Acoes</th>
                   </tr>
                 </thead>
@@ -2009,11 +2009,11 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
                           {demanda.prioridade}
                         </span>
                       </td>
-                      <td className="px-2 py-4 font-medium text-slate-700">
+                      <td className="whitespace-nowrap px-2 py-4 font-medium text-slate-700">
                         <div>{formatarPrazo(demanda.prazo)}</div>
                         <div className="mt-1">
                           <span
-                            className={`rounded-full px-3 py-1 text-[11px] font-semibold ${prazoBadgeClasse(
+                            className={`inline-flex whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-semibold ${prazoBadgeClasse(
                               demanda.prazo
                             )}`}
                           >

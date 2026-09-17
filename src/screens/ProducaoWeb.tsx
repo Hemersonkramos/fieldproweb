@@ -8,14 +8,26 @@ import {
   Route,
   Trophy,
   Truck,
+  MapPin,
+  Menu,
+  Home,
+  Settings,
+  ChevronDown,
+  LogOut,
 } from "lucide-react";
-import { MapContainer, Marker, Polyline, Popup, TileLayer } from "react-leaflet";
+import { MapContainer, Marker, Polyline, Popup, TileLayer, ScaleControl, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { API_BASE_URL, authFetch } from "../lib/api";
+import type { UsuarioWeb } from "../App";
+import "./Escritorio.css";
+import "./ProducaoWeb.css";
 
 type Props = {
   voltar: () => void;
+  usuario: UsuarioWeb | null;
+  irParaAdmin?: () => void;
+  sair: () => void;
 };
 
 type ProducaoApi = {
@@ -121,7 +133,8 @@ async function buscarRota(idEquipe: number | undefined, dataInicial: string, dat
   ) as RotaPonto[];
 }
 
-export default function ProducaoWeb({ voltar }: Props) {
+export default function ProducaoWeb({ voltar, usuario, irParaAdmin, sair }: Props) {
+  const [menuRecolhido, setMenuRecolhido] = useState(() => window.matchMedia("(max-width: 700px)").matches);
   const [dados, setDados] = useState<Producao[]>([]);
   const [rota, setRota] = useState<RotaPonto[]>([]);
   const [equipeSelecionada, setEquipeSelecionada] = useState<number | null>(null);
@@ -257,47 +270,28 @@ export default function ProducaoWeb({ voltar }: Props) {
   const centroMapa = rota.length > 0 ? rota[0] : CENTRO_PADRAO;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#dbeafe_0%,_#eff6ff_30%,_#f8fafc_100%)] text-slate-900">
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
-        <header className="relative overflow-hidden rounded-[32px] border border-white/70 bg-gradient-to-br from-[#071f38] via-[#0a355e] to-[#4e8db0] px-6 py-6 text-white shadow-[0_24px_80px_rgba(2,23,48,0.25)]">
-          <div className="absolute -right-8 top-0 h-44 w-44 rounded-full bg-cyan-200/15 blur-3xl" />
-          <div className="absolute -bottom-10 left-1/4 h-36 w-36 rounded-full bg-blue-100/10 blur-3xl" />
-
-          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold tracking-[0.2em] uppercase text-cyan-100">
-                <Route size={14} />
-                Monitoramento de campo
-              </div>
-
-              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
-                Producao e desempenho das equipes
-              </h1>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-sky-50/90 sm:text-base">
-                Resumo das equipes, rotas e produtividade do dia.
-              </p>
-
-              <div className="mt-5 flex flex-wrap gap-3 text-sm">
-                <HeroChip label={`${dados.length} equipes monitoradas`} />
-                <HeroChip label={`${pontosTotal} pontos totais`} />
-                <HeroChip label={`${notasTotal} solicitacoes concluidas/finalizadas`} />
-              </div>
-            </div>
-
-            <button
-              onClick={voltar}
-              className="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-[#0a355e] shadow-lg transition hover:bg-sky-50"
-            >
-              Voltar ao escritorio
-            </button>
-          </div>
+    <div className={`fp-dashboard fp-production ${menuRecolhido ? "fp-sidebar-collapsed" : ""}`}>
+      <aside className="fp-sidebar">
+        <div className="fp-sidebar-brand"><MapPin size={29} fill="#1c8cf0" strokeWidth={1.6} /><span>Field<b>Pro</b></span><button onClick={() => setMenuRecolhido(!menuRecolhido)} aria-label={menuRecolhido ? "Expandir menu" : "Recolher menu"} aria-expanded={!menuRecolhido}><Menu size={20} /></button></div>
+        <nav aria-label="Navegação principal">
+          <button onClick={voltar} title="Visão geral"><Home size={21} /><span>Visão geral</span></button>
+          <a href="#producao" className="is-active" aria-current="page" title="Produção e rotas"><Route size={21} /><span>Produção e rotas</span></a>
+          {usuario?.perfil === "admin" && irParaAdmin && <button onClick={irParaAdmin} title="Administração"><Settings size={21} /><span>Administração</span></button>}
+        </nav>
+        <div className="fp-sidebar-footer"><i className={erro ? "has-error" : ""} /><div><span>Centro operacional</span><strong>FieldPro</strong><small>{carregando ? "Sincronizando" : erro ? "Falha na sincronização" : "Conectado"}</small></div></div>
+      </aside>
+      <div className="fp-workarea" id="producao">
+        <header className="fp-topbar">
+          <div className="fp-page-title"><h1>Produção e rotas</h1><p>Acompanhamento de trajetos e produtividade das equipes.</p></div>
+          <button className="fp-button" disabled={carregando} onClick={() => void carregarTudo(equipeSelecionada)}><RefreshCcw size={15} />{carregando ? "Atualizando…" : "Atualizar dados"}</button>
+          <div className="fp-user-area"><details className="fp-user-menu"><summary><span className="fp-avatar">{usuario?.nome_completo.split(" ").filter(Boolean).slice(0, 2).map((nome) => nome[0]).join("") || "FP"}</span><span className="fp-user-name"><strong>{usuario?.nome_completo || "FieldPro"}</strong><small>{usuario?.perfil === "admin" ? "Administrador" : "Escritório"}</small></span><ChevronDown size={14} /></summary><div className="fp-user-dropdown"><button onClick={voltar}><Home size={16} />Voltar ao escritório</button><button onClick={sair}><LogOut size={16} />Sair</button></div></details></div>
         </header>
-
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <main className="fp-content">
+        <section className="fp-metrics">
           <Kpi
             titulo="Equipe destaque"
             valor={equipeDestaque?.equipe || "-"}
-            detalhe={`${equipeDestaque?.notas || 0} concluidas/finalizadas`}
+            detalhe={`${equipeDestaque?.notas || 0} concluídas/finalizadas`}
             cor="emerald"
             icone={<Trophy size={18} />}
           />
@@ -318,22 +312,22 @@ export default function ProducaoWeb({ voltar }: Props) {
           <Kpi
             titulo="Notas registradas"
             valor={notasTotal}
-            detalhe="concluidas/finalizadas"
+            detalhe="concluídas/finalizadas"
             cor="violet"
             icone={<ClipboardList size={18} />}
           />
         </section>
 
-        <section className="rounded-[28px] border border-slate-200/70 bg-white/85 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur">
+        <section className="fp-panel fp-period-panel">
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-bold text-slate-900">Filtro de período</h2>
               <p className="text-sm text-slate-500">
-                Recalcule produção, rota e indicadores por data inicial e final.
+                Escolha o período para consultar os indicadores e os trajetos.
               </p>
             </div>
 
-            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-600">
+            <div className="fp-period-label">
               <Filter size={14} />
               Período operacional
             </div>
@@ -366,7 +360,7 @@ export default function ProducaoWeb({ voltar }: Props) {
                   setDataInicial("");
                   setDataFinal("");
                 }}
-                className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-sky-300 hover:text-sky-700"
+                className="fp-button"
               >
                 Limpar período
               </button>
@@ -374,26 +368,28 @@ export default function ProducaoWeb({ voltar }: Props) {
           </div>
         </section>
 
-        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.25fr_0.9fr]">
-          <section className="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
-            <div className="flex flex-col gap-4 border-b border-slate-200/70 bg-[linear-gradient(135deg,#f8fbff_0%,#edf5ff_100%)] px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+        <section className="fp-operation-grid">
+          <section className="fp-panel fp-map-panel">
+            <div className="fp-panel-heading fp-route-heading">
               <div>
                 <h2 className="text-xl font-bold text-slate-900">Rota da equipe</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Selecione uma equipe para visualizar o trajeto registrado e a leitura
-                  operacional do mapa.
+                  Selecione uma equipe para visualizar o trajeto registrado.
                 </p>
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="fp-route-controls">
                 <select
+                  aria-label="Equipe da rota"
+                  disabled={carregando || dados.length === 0}
                   value={equipeSelecionada ?? ""}
                   onChange={(event) => {
                     const valor = Number(event.target.value);
                     void carregarTudo(valor);
                   }}
-                  className="rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                  className="fp-select"
                 >
+                  {dados.length === 0 && <option value="">Nenhuma equipe disponível</option>}
                   {dados.map((item) => (
                     <option key={item.id_equipe} value={item.id_equipe}>
                       {item.equipe}
@@ -403,7 +399,7 @@ export default function ProducaoWeb({ voltar }: Props) {
 
                 <button
                   onClick={() => void carregarTudo(equipeSelecionada)}
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-sky-300 hover:text-sky-700"
+                  className="fp-button"
                 >
                   <RefreshCcw size={15} />
                   Atualizar
@@ -411,13 +407,15 @@ export default function ProducaoWeb({ voltar }: Props) {
               </div>
             </div>
 
-            <div className="h-[470px] bg-slate-100">
+            <div className="fp-production-map">
               {carregando ? (
                 <CentralMessage mensagem="Carregando mapa da equipe..." />
               ) : erro ? (
                 <CentralMessage mensagem={erro} />
               ) : rota.length > 0 ? (
                 <MapContainer center={centroMapa} zoom={13} style={{ height: "100%", width: "100%" }}>
+                  <AjustarMapaProducao />
+                  <ScaleControl position="bottomleft" imperial={false} />
                   <TileLayer attribution={SATELITE_ATTRIBUTION} url={SATELITE_TILE_URL} />
 
                   <Polyline
@@ -431,7 +429,7 @@ export default function ProducaoWeb({ voltar }: Props) {
 
                   {rota.map((posicao, index) => (
                     <Marker key={`${posicao[0]}-${posicao[1]}-${index}`} position={posicao}>
-                      <Popup>{index === 0 ? "Inicio da rota" : `Ponto ${index + 1}`}</Popup>
+                      <Popup>{index === 0 ? "Início da rota" : `Ponto ${index + 1}`}</Popup>
                     </Marker>
                   ))}
                 </MapContainer>
@@ -441,11 +439,11 @@ export default function ProducaoWeb({ voltar }: Props) {
             </div>
           </section>
 
-          <section className="rounded-[30px] border border-slate-200/70 bg-white p-5 shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
+          <section className="fp-panel fp-production-teams">
             <div className="mb-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">Producao por equipe</h2>
+                  <h2 className="text-xl font-bold text-slate-900">Produção por equipe</h2>
                   <p className="text-sm text-slate-500">
                     Clique em uma equipe para destacar a rota e comparar a produtividade.
                   </p>
@@ -454,7 +452,7 @@ export default function ProducaoWeb({ voltar }: Props) {
                 <label className="space-y-1 text-sm font-semibold text-slate-600">
                   <span>Ordenar por</span>
                   <select
-                    className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                    className="fp-select"
                     value={ordenacao}
                     onChange={(event) =>
                       setOrdenacao(event.target.value as "notas" | "pontos" | "km")
@@ -473,21 +471,22 @@ export default function ProducaoWeb({ voltar }: Props) {
                 {erro}
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="fp-production-team-list">
                 {dadosOrdenados.map((item) => (
                   <button
                     key={item.id_equipe}
                     onClick={() => void carregarTudo(item.id_equipe)}
-                    className={`w-full rounded-[24px] border p-4 text-left shadow-sm transition ${
+                    aria-pressed={item.id_equipe === equipeSelecionada}
+                    className={`fp-production-team ${
                       item.id_equipe === equipeSelecionada
-                        ? "border-sky-300 bg-[linear-gradient(135deg,#eff6ff_0%,#f8fbff_100%)] shadow-[0_14px_40px_rgba(59,130,246,0.12)]"
-                        : "border-slate-200 bg-slate-50/70 hover:border-slate-300"
+                        ? "is-selected"
+                        : ""
                     }`}
                   >
                     <div className="mb-4 flex items-start justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="rounded-xl bg-slate-900 p-2 text-white">
+                          <span className="rounded-md bg-sky-50 p-2 text-sky-700">
                             <Truck size={14} />
                           </span>
                           <strong className="text-base text-slate-900">{item.equipe}</strong>
@@ -498,7 +497,7 @@ export default function ProducaoWeb({ voltar }: Props) {
                       </div>
 
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold ${
+                        className={`rounded px-2 py-1 text-xs font-medium ${
                           item.status === "Offline"
                             ? "bg-slate-200 text-slate-600"
                             : "bg-emerald-100 text-emerald-700"
@@ -517,30 +516,23 @@ export default function ProducaoWeb({ voltar }: Props) {
                 ))}
 
                 {!carregando && dados.length === 0 && (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
-                    Nenhum dado de producao encontrado.
+                  <div className="fp-production-empty">
+                    Nenhum dado de produção encontrado.
                   </div>
                 )}
               </div>
             )}
           </section>
         </section>
+        </main>
       </div>
     </div>
   );
 }
 
-function HeroChip({ label }: { label: string }) {
-  return (
-    <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/90 backdrop-blur">
-      {label}
-    </span>
-  );
-}
-
 function CentralMessage({ mensagem }: { mensagem: string }) {
   return (
-    <div className="flex h-full items-center justify-center bg-[linear-gradient(180deg,#f8fbff_0%,#eef4fb_100%)] px-6 text-center text-sm font-semibold text-slate-500">
+    <div className="fp-production-map-message">
       {mensagem}
     </div>
   );
@@ -559,55 +551,34 @@ function Kpi({
   cor: "emerald" | "sky" | "amber" | "violet";
   icone: ReactNode;
 }) {
-  const estilos = {
-    emerald: {
-      gradiente: "from-emerald-500 to-teal-400",
-      pill: "bg-emerald-100 text-emerald-700",
-    },
-    sky: {
-      gradiente: "from-sky-500 to-cyan-400",
-      pill: "bg-sky-100 text-sky-700",
-    },
-    amber: {
-      gradiente: "from-amber-500 to-orange-400",
-      pill: "bg-amber-100 text-amber-700",
-    },
-    violet: {
-      gradiente: "from-violet-500 to-fuchsia-400",
-      pill: "bg-violet-100 text-violet-700",
-    },
-  }[cor];
-
   return (
-    <div className="relative overflow-hidden rounded-[28px] border border-white/70 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-      <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-slate-100/60 blur-2xl" />
-
-      <div className="relative flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-slate-500">{titulo}</p>
-          <div className="mt-3 text-4xl font-black tracking-tight text-slate-900">{valor}</div>
-        </div>
-
-        <div className={`rounded-2xl bg-gradient-to-br p-3 text-white shadow-lg ${estilos.gradiente}`}>
-          {icone}
-        </div>
+    <div className={`fp-stat-card fp-stat-${cor}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0"><p>{titulo}</p><div className="fp-production-stat-value" title={String(valor)}>{valor}</div></div>
+        <div className={`fp-production-stat-icon fp-icon-${cor}`}>{icone}</div>
       </div>
-
-      <div className="relative mt-5 flex items-center justify-between">
-        <span className={`rounded-full px-3 py-1 text-xs font-bold ${estilos.pill}`}>{detalhe}</span>
-        <span className="text-xs font-semibold text-slate-400">Visao consolidada</span>
-      </div>
+      <div className="fp-production-stat-detail">{detalhe}</div>
     </div>
   );
 }
 
 function MiniCard({ titulo, valor }: { titulo: string; valor: string | number }) {
   return (
-    <div className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-100">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+    <div className="fp-production-mini">
+      <div className="text-[11px] font-medium text-slate-500">
         {titulo}
       </div>
-      <strong className="mt-1 block text-2xl text-slate-900">{valor}</strong>
+      <strong className="mt-1 block text-xl font-semibold text-slate-900">{valor}</strong>
     </div>
   );
+}
+
+function AjustarMapaProducao() {
+  const mapa = useMap();
+  useEffect(() => {
+    const observador = new ResizeObserver(() => mapa.invalidateSize());
+    observador.observe(mapa.getContainer());
+    return () => observador.disconnect();
+  }, [mapa]);
+  return null;
 }

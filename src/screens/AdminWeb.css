@@ -1,0 +1,51 @@
+.fp-admin .fp-topbar > .fp-button { flex-shrink: 0; }
+.fp-admin .fp-stat-card > svg { float: right; color: #6084a6; margin-top: 3px; }
+.fp-admin .fp-stat-card > strong { display: block; margin-top: 6px; font-size: 28px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.fp-admin .fp-stat-card > small { display: block; margin-top: 5px; font-size: 12px; color: #627b9e; }
+.fp-admin-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; min-width: 0; align-items: start; border: 0; padding: 0; margin: 14px 0 0; }
+.fp-admin-panel { padding: 16px; }
+.fp-admin-panel > div:first-child { margin-bottom: 16px; gap: 10px; }
+.fp-admin-panel > div:first-child > span { border-radius: 7px; padding: 9px; }
+.fp-admin-panel p { font-size: 12px; color: #627b9e; }
+.fp-admin label { display: block; font-size: 12px; font-weight: 500; color: #496584; }
+.fp-admin .input { min-width: 0; min-height: 36px; padding: 7px 10px; border-radius: 5px; border-color: #ccd9e7; background: #fff; box-shadow: none; font-size: 13px; }
+.fp-admin .input:focus { border-color: #2a83c2; box-shadow: 0 0 0 2px #2387cb18; }
+.fp-admin .fp-search { display: flex; flex: 1; font-weight: 400; }
+.fp-admin-create { padding: 0 12px; border: 1px solid #dce5ee; border-radius: 6px; background: #f8fafc; margin-bottom: 16px; }
+.fp-admin-create summary { display: flex; align-items: center; gap: 7px; padding: 12px 0; list-style: none; cursor: pointer; font-size: 13px; font-weight: 600; color: #164e78; }
+.fp-admin-create summary::-webkit-details-marker { display: none; }
+.fp-admin-create summary::after { content: "+"; margin-left: auto; font-size: 18px; font-weight: 400; }
+.fp-admin-create[open] summary::after { content: "−"; }
+.fp-admin-create[open] { padding-bottom: 12px; }
+.fp-admin-create[open] summary { margin-bottom: 10px; border-bottom: 1px solid #dce5ee; }
+.fp-admin-primary { background: #0b416c; color: #fff; border-color: #0b416c; }
+.fp-admin-primary:hover { background: #145781; }
+.fp-admin-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.fp-admin-filters .input { width: auto; max-width: 100%; font-size: 12px; }
+.fp-admin-count { margin-bottom: 12px; }
+.fp-admin-record { padding: 14px; border: 1px solid #dce5ee; border-radius: 6px; background: #fbfcfe; }
+.fp-admin-record > div:first-child { flex-wrap: wrap; font-size: 14px; }
+.fp-admin-badge { margin-left: auto; padding: 3px 7px; border-radius: 4px; background: #eaf2f8; color: #3b6284; font-size: 10px; }
+.fp-admin-record button { min-height: 34px; }
+.fp-admin-empty { display: flex; align-items: center; justify-content: center; min-height: 150px; border: 1px solid #dce5ee; border-radius: 6px; padding: 24px; text-align: center; color: #627b9e; font-size: 13px; background: #f8fafc; }
+.fp-admin-feedback { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border: 1px solid #bce2d6; border-radius: 6px; background: #edf9f4; color: #16634d; font-size: 13px; margin-bottom: 12px; }
+.fp-admin-feedback.erro { background: #fff1f2; border-color: #fecdd3; color: #9f1239; }
+.fp-admin-feedback button { padding: 2px 8px; font-size: 20px; }
+.fp-admin-pending { padding: 8px 0; font-size: 12px; color: #496584; }
+.fp-admin-password { display: grid; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #dce5ee; }
+.fp-admin-password .input { display: block; margin-top: 6px; }
+.fp-admin-password > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.fp-admin-password p { color: #9f1239; }
+.fp-admin button:disabled, .fp-admin fieldset:disabled button { opacity: 0.55; cursor: not-allowed; }
+.fp-admin fieldset:disabled .input { background: #f1f5f9; color: #64748b; }
+@media (max-width: 1150px) {
+  .fp-admin-columns { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .fp-admin .fp-user-area { width: auto; min-width: 0; margin-left: auto; }
+  .fp-admin-panel { padding: 12px; }
+  .fp-admin .fp-stat-card > svg { display: none; }
+  .fp-admin .fp-stat-card > small { font-size: 11px; }
+  .fp-admin-filters { flex-direction: column; }
+  .fp-admin-filters .fp-search { flex: auto; }
+}

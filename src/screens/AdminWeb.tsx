@@ -1,9 +1,15 @@
-import { useEffect, useState } from "react";
-import { KeyRound, Plus, Shield, Trash2, UserCog, Users, Wrench } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { KeyRound, Plus, Shield, Trash2, UserCog, Users, Wrench, MapPin, Menu, Home, Route, Settings, ChevronDown, LogOut, RefreshCw, Search } from "lucide-react";
 import { API_BASE_URL, authFetch } from "../lib/api";
+import type { UsuarioWeb } from "../App";
+import "./Escritorio.css";
+import "./AdminWeb.css";
 
 type Props = {
   voltar: () => void;
+  irParaProducao: () => void;
+  usuario: UsuarioWeb | null;
+  sair: () => void;
 };
 
 type UsuarioAdmin = {
@@ -23,7 +29,14 @@ type EquipeAdmin = {
   status: string | null;
 };
 
-export default function AdminWeb({ voltar }: Props) {
+export default function AdminWeb({ voltar, irParaProducao, usuario, sair }: Props) {
+  const [menuRecolhido, setMenuRecolhido] = useState(() => window.matchMedia("(max-width: 700px)").matches);
+  const [buscaUsuario, setBuscaUsuario] = useState("");
+  const [buscaEquipe, setBuscaEquipe] = useState("");
+  const [perfilFiltro, setPerfilFiltro] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const travaAcao = useRef(false);
+  const [feedback, setFeedback] = useState<{ tipo: "sucesso" | "erro"; texto: string } | null>(null);
   const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([]);
   const [equipes, setEquipes] = useState<EquipeAdmin[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -112,6 +125,9 @@ export default function AdminWeb({ voltar }: Props) {
   }, []);
 
   async function criarUsuario() {
+    if (!novoUsuario.nome_completo.trim() || !novoUsuario.user.trim() || !novoUsuario.password.trim()) {
+      throw new Error("Preencha nome, usuário e senha para criar o cadastro.");
+    }
     const resposta = await authFetch(`${API_BASE_URL}/admin/usuarios`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -139,6 +155,7 @@ export default function AdminWeb({ voltar }: Props) {
   }
 
   async function salvarUsuario(usuario: UsuarioAdmin) {
+    if (!usuario.nome_completo.trim() || !usuario.user.trim()) throw new Error("Nome e usuário são obrigatórios.");
     const resposta = await authFetch(`${API_BASE_URL}/admin/usuarios/${usuario.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -153,12 +170,8 @@ export default function AdminWeb({ voltar }: Props) {
     await carregarTudo();
   }
 
-  async function alterarSenha(id: number) {
-    const novaSenha = window.prompt("Digite a nova senha:");
-
-    if (!novaSenha) {
-      return;
-    }
+  async function alterarSenha(id: number, novaSenha: string) {
+    if (!novaSenha.trim()) throw new Error("Informe a nova senha.");
 
     const resposta = await authFetch(`${API_BASE_URL}/admin/usuarios/${id}/senha`, {
       method: "PUT",
@@ -171,12 +184,11 @@ export default function AdminWeb({ voltar }: Props) {
       throw new Error(dados.erro || "Erro ao alterar senha.");
     }
 
-    window.alert("Senha alterada com sucesso.");
   }
 
   async function excluirUsuario(id: number) {
     if (!window.confirm("Deseja excluir este usuário?")) {
-      return;
+      return false;
     }
 
     const resposta = await authFetch(`${API_BASE_URL}/admin/usuarios/${id}`, {
@@ -192,6 +204,7 @@ export default function AdminWeb({ voltar }: Props) {
   }
 
   async function criarEquipe() {
+    if (!novaEquipe.numero_equipe.trim()) throw new Error("Informe o nome ou número da equipe.");
     const resposta = await authFetch(`${API_BASE_URL}/admin/equipes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -214,6 +227,7 @@ export default function AdminWeb({ voltar }: Props) {
   }
 
   async function salvarEquipe(equipe: EquipeAdmin) {
+    if (!equipe.numero_equipe.trim()) throw new Error("Informe o nome ou número da equipe.");
     const resposta = await authFetch(`${API_BASE_URL}/admin/equipes/${equipe.id_equipe}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -230,7 +244,7 @@ export default function AdminWeb({ voltar }: Props) {
 
   async function excluirEquipe(id: number) {
     if (!window.confirm("Deseja excluir esta equipe?")) {
-      return;
+      return false;
     }
 
     const resposta = await authFetch(`${API_BASE_URL}/admin/equipes/${id}`, {
@@ -245,59 +259,75 @@ export default function AdminWeb({ voltar }: Props) {
     await carregarTudo();
   }
 
-  async function executar(acao: () => Promise<void>) {
+  async function executar(acao: () => Promise<void | false>) {
+    if (travaAcao.current) return false;
+    travaAcao.current = true;
+    setOcupado(true);
+    setFeedback(null);
     try {
-      await acao();
+      const resultado = await acao();
+      if (resultado === false) return false;
+      setFeedback({ tipo: "sucesso", texto: "Alteração realizada com sucesso." });
+      return true;
     } catch (error) {
       console.error(error);
-      window.alert(error instanceof Error ? error.message : "Erro ao executar ação.");
+      setFeedback({ tipo: "erro", texto: error instanceof Error ? error.message : "Erro ao executar ação." });
+      return false;
+    } finally {
+      travaAcao.current = false;
+      setOcupado(false);
     }
   }
 
+  const usuariosVisiveis = usuarios.filter((item) =>
+    (!perfilFiltro || item.perfil === perfilFiltro) &&
+    `${item.nome_completo} ${item.user} ${item.equipe || ""}`.toLocaleLowerCase("pt-BR").includes(buscaUsuario.trim().toLocaleLowerCase("pt-BR"))
+  );
+  const equipesVisiveis = equipes.filter((item) =>
+    `${item.numero_equipe} ${item.veiculo || ""} ${item.placa || ""}`.toLocaleLowerCase("pt-BR").includes(buscaEquipe.trim().toLocaleLowerCase("pt-BR"))
+  );
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#e0f2fe_0%,_#f8fafc_38%,_#edf4f8_100%)] text-slate-900">
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
-        <header className="rounded-[32px] border border-white/70 bg-gradient-to-br from-[#1e1b4b] via-[#0f3b68] to-[#2b7aa3] px-6 py-6 text-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold tracking-[0.2em] uppercase text-cyan-100">
-                <Shield size={14} />
-                Gestão administrativa
-              </div>
-              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Administração FieldPro</h1>
-              <p className="mt-3 text-sm leading-6 text-sky-50/90 sm:text-base">
-                Criação de usuários, equipes de campo, troca de senha, edição de dados
-                e concessão de acesso administrativo.
-              </p>
-            </div>
-
-            <button
-              onClick={voltar}
-              className="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-[#0b3157] shadow-lg transition hover:bg-sky-50"
-            >
-              Voltar ao escritório
-            </button>
-          </div>
+    <div className={`fp-dashboard fp-admin ${menuRecolhido ? "fp-sidebar-collapsed" : ""}`}>
+      <aside className="fp-sidebar">
+        <div className="fp-sidebar-brand"><MapPin size={29} fill="#1c8cf0" strokeWidth={1.6} /><span>Field<b>Pro</b></span><button onClick={() => setMenuRecolhido(!menuRecolhido)} aria-label={menuRecolhido ? "Expandir menu" : "Recolher menu"} aria-expanded={!menuRecolhido}><Menu size={20} /></button></div>
+        <nav aria-label="Navegação principal"><button onClick={voltar} title="Visão geral"><Home size={21} /><span>Visão geral</span></button><button onClick={irParaProducao} title="Produção e rotas"><Route size={21} /><span>Produção e rotas</span></button><a href="#administracao" className="is-active" aria-current="page" title="Administração"><Settings size={21} /><span>Administração</span></a></nav>
+        <div className="fp-sidebar-footer"><Shield size={18} /><div><span>Gestão de acesso</span><strong>FieldPro</strong><small>Administração</small></div></div>
+      </aside>
+      <div className="fp-workarea" id="administracao">
+        <header className="fp-topbar">
+          <div className="fp-page-title"><h1>Administração</h1><p>Gerencie usuários, permissões e equipes de campo.</p></div>
+          <button className="fp-button" disabled={carregando || ocupado} onClick={() => void carregarTudo()}><RefreshCw size={15} />{carregando ? "Atualizando…" : "Atualizar dados"}</button>
+          <div className="fp-user-area"><details className="fp-user-menu"><summary><span className="fp-avatar">{usuario?.nome_completo.split(" ").filter(Boolean).slice(0, 2).map((nome) => nome[0]).join("") || "FP"}</span><span className="fp-user-name"><strong>{usuario?.nome_completo || "FieldPro"}</strong><small>Administrador</small></span><ChevronDown size={14} /></summary><div className="fp-user-dropdown"><button onClick={voltar}><Home size={16} />Voltar ao escritório</button><button onClick={sair}><LogOut size={16} />Sair</button></div></details></div>
         </header>
-
+        <main className="fp-content">
+          <section className="fp-metrics" aria-label="Resumo dos cadastros">
+            <div className="fp-stat-card fp-stat-sky"><Users size={20} /><p>Usuários cadastrados</p><strong>{carregando ? "—" : usuarios.length}</strong><small>Acessos ao sistema</small></div>
+            <div className="fp-stat-card fp-stat-rose"><Shield size={20} /><p>Administradores</p><strong>{carregando ? "—" : usuarios.filter((item) => item.perfil === "admin").length}</strong><small>Gestão de permissões</small></div>
+            <div className="fp-stat-card fp-stat-amber"><Wrench size={20} /><p>Equipes cadastradas</p><strong>{carregando ? "—" : equipes.length}</strong><small>Equipes de campo</small></div>
+            <div className="fp-stat-card fp-stat-emerald"><UserCog size={20} /><p>Usuários de escritório</p><strong>{carregando ? "—" : usuarios.filter((item) => item.perfil === "escritorio").length}</strong><small>Operação do escritório</small></div>
+          </section>
+          {feedback && <div className={`fp-admin-feedback ${feedback.tipo}`} role={feedback.tipo === "erro" ? "alert" : "status"}>{feedback.texto}<button onClick={() => setFeedback(null)} aria-label="Fechar mensagem">×</button></div>}
+          {ocupado && <p className="fp-admin-pending" role="status">Salvando alteração…</p>}
         {erro && (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-700">
             {erro}
           </div>
         )}
 
-        <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <div className="rounded-[28px] border border-slate-200/70 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+        <fieldset disabled={ocupado || carregando} className="fp-admin-columns" aria-busy={ocupado || carregando}>
+          <div className="fp-panel fp-admin-panel">
             <div className="mb-5 flex items-center gap-3">
               <span className="rounded-2xl bg-sky-100 p-3 text-sky-700">
                 <Users size={18} />
               </span>
               <div>
                 <h2 className="text-xl font-bold text-slate-900">Usuários</h2>
-                <p className="text-sm text-slate-500">Crie, edite, troque senha e conceda acesso admin.</p>
+                <p className="text-sm text-slate-500">Gerencie os dados de acesso e o vínculo com as equipes.</p>
               </div>
             </div>
 
+            <details className="fp-admin-create"><summary><Plus size={16} />Novo usuário</summary>
             <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-2">
               <Campo label="Nome" value={novoUsuario.nome_completo} onChange={(value) => setNovoUsuario((atual) => ({ ...atual, nome_completo: value }))} />
               <Campo label="Usuário" value={novoUsuario.user} onChange={(value) => setNovoUsuario((atual) => ({ ...atual, user: value }))} />
@@ -323,22 +353,26 @@ export default function AdminWeb({ voltar }: Props) {
               </label>
             </div>
 
-            <button onClick={() => void executar(criarUsuario)} className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-slate-800">
+            <button onClick={() => void executar(criarUsuario)} className="fp-button fp-admin-primary">
               <Plus size={15} />
               Criar usuário
             </button>
 
+            </details>
+            <div className="fp-admin-filters"><label className="fp-search"><Search size={16} /><input aria-label="Buscar usuário" placeholder="Buscar nome, usuário ou equipe…" value={buscaUsuario} onChange={(event) => setBuscaUsuario(event.target.value)} /></label><select className="input" aria-label="Filtrar perfil" value={perfilFiltro} onChange={(event) => setPerfilFiltro(event.target.value)}><option value="">Todos os perfis</option><option value="admin">Administrador</option><option value="escritorio">Escritório</option><option value="equipe">Equipe</option></select></div>
+            <p className="fp-admin-count">{usuariosVisiveis.length} de {usuarios.length} usuários</p>
+            {!carregando && !erro && usuariosVisiveis.length === 0 && <div className="fp-admin-empty">{usuarios.length ? "Nenhum usuário corresponde aos filtros." : "Nenhum usuário cadastrado. Use Novo usuário para começar."}</div>}
             <div className="mt-6 space-y-4">
               {carregando ? (
                 <div className="text-sm text-slate-500">Carregando usuários...</div>
               ) : (
-                usuarios.map((usuario) => (
+                usuariosVisiveis.map((usuario) => (
                   <UsuarioCard
                     key={`${usuario.id}-${usuario.nome_completo}-${usuario.user}-${usuario.perfil}-${usuario.id_equipe ?? "sem-equipe"}`}
                     usuario={usuario}
                     equipes={equipes}
                     onSalvar={(item) => void executar(() => salvarUsuario(item))}
-                    onAlterarSenha={(id) => void executar(() => alterarSenha(id))}
+                    onAlterarSenha={(id, senha) => executar(() => alterarSenha(id, senha))}
                     onExcluir={(id) => void executar(() => excluirUsuario(id))}
                   />
                 ))
@@ -346,7 +380,7 @@ export default function AdminWeb({ voltar }: Props) {
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-slate-200/70 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+          <div className="fp-panel fp-admin-panel">
             <div className="mb-5 flex items-center gap-3">
               <span className="rounded-2xl bg-amber-100 p-3 text-amber-700">
                 <Wrench size={18} />
@@ -357,6 +391,7 @@ export default function AdminWeb({ voltar }: Props) {
               </div>
             </div>
 
+            <details className="fp-admin-create"><summary><Plus size={16} />Nova equipe</summary>
             <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-2">
               <Campo label="Equipe" value={novaEquipe.numero_equipe} onChange={(value) => setNovaEquipe((atual) => ({ ...atual, numero_equipe: value }))} />
               <Campo label="Veículo" value={novaEquipe.veiculo} onChange={(value) => setNovaEquipe((atual) => ({ ...atual, veiculo: value }))} />
@@ -370,18 +405,22 @@ export default function AdminWeb({ voltar }: Props) {
               </label>
             </div>
 
-            <button onClick={() => void executar(criarEquipe)} className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-slate-800">
+            <button onClick={() => void executar(criarEquipe)} className="fp-button fp-admin-primary">
               <Plus size={15} />
               Criar equipe
             </button>
 
+            </details>
+            <div className="fp-admin-filters"><label className="fp-search"><Search size={16} /><input aria-label="Buscar equipe" placeholder="Buscar equipe, veículo ou placa…" value={buscaEquipe} onChange={(event) => setBuscaEquipe(event.target.value)} /></label></div>
+            <p className="fp-admin-count">{equipesVisiveis.length} de {equipes.length} equipes</p>
+            {!carregando && !erro && equipesVisiveis.length === 0 && <div className="fp-admin-empty">{equipes.length ? "Nenhuma equipe corresponde à busca." : "Nenhuma equipe cadastrada. Use Nova equipe para começar."}</div>}
             <div className="mt-6 space-y-4">
               {carregando ? (
                 <div className="text-sm text-slate-500">Carregando equipes...</div>
               ) : (
-                equipes.map((equipe) => (
+                equipesVisiveis.map((equipe) => (
                   <EquipeCard
-                    key={`${equipe.id_equipe}-${equipe.numero_equipe}-${equipe.placa ?? "sem-placa"}-${equipe.status ?? "sem-status"}`}
+                    key={`${equipe.id_equipe}-${equipe.numero_equipe}-${equipe.placa ?? "sem-placa"}-${equipe.veiculo ?? "sem-veiculo"}-${equipe.status ?? "sem-status"}`}
                     equipe={equipe}
                     onSalvar={(item) => void executar(() => salvarEquipe(item))}
                     onExcluir={(id) => void executar(() => excluirEquipe(id))}
@@ -390,7 +429,8 @@ export default function AdminWeb({ voltar }: Props) {
               )}
             </div>
           </div>
-        </section>
+        </fieldset>
+        </main>
       </div>
     </div>
   );
@@ -425,18 +465,21 @@ function UsuarioCard({
   usuario: UsuarioAdmin;
   equipes: EquipeAdmin[];
   onSalvar: (usuario: UsuarioAdmin) => void;
-  onAlterarSenha: (id: number) => void;
+  onAlterarSenha: (id: number, senha: string) => Promise<boolean>;
   onExcluir: (id: number) => void;
 }) {
   const [edicao, setEdicao] = useState(usuario);
+  const [editandoSenha, setEditandoSenha] = useState(false);
+  const [senha, setSenha] = useState("");
+  const [confirmacaoSenha, setConfirmacaoSenha] = useState("");
 
   return (
-    <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
+    <div className="fp-admin-record">
       <div className="mb-4 flex items-center gap-2">
-        <span className="rounded-xl bg-slate-900 p-2 text-white">
+        <span className="rounded-md bg-sky-50 p-2 text-sky-700">
           <UserCog size={14} />
         </span>
-        <strong className="text-slate-900">{usuario.nome_completo}</strong>
+        <strong className="text-slate-900">{usuario.nome_completo}</strong><span className="fp-admin-badge">{usuario.perfil === "admin" ? "Administrador" : usuario.perfil === "escritorio" ? "Escritório" : "Equipe"}</span>
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -464,10 +507,11 @@ function UsuarioCard({
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <button onClick={() => onSalvar(edicao)} className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white">Salvar</button>
-        <button onClick={() => onAlterarSenha(usuario.id)} className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700"><KeyRound size={13} />Senha</button>
-        <button onClick={() => onExcluir(usuario.id)} className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700"><Trash2 size={13} />Excluir</button>
+        <button onClick={() => onSalvar(edicao)} className="fp-button fp-admin-primary">Salvar</button>
+        <button onClick={() => { setEditandoSenha(!editandoSenha); setSenha(""); setConfirmacaoSenha(""); }} aria-expanded={editandoSenha} className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700"><KeyRound size={13} />Senha</button>
+        <button onClick={() => onExcluir(usuario.id)} className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700"><Trash2 size={13} />Excluir</button>
       </div>
+      {editandoSenha && <form className="fp-admin-password" onSubmit={(event) => { event.preventDefault(); if (senha !== confirmacaoSenha) return; void onAlterarSenha(usuario.id, senha).then((sucesso) => { if (sucesso) { setSenha(""); setConfirmacaoSenha(""); setEditandoSenha(false); } }); }}><label>Nova senha<input className="input" type="password" autoComplete="new-password" required value={senha} onChange={(event) => setSenha(event.target.value)} /></label><label>Confirmar nova senha<input className="input" type="password" autoComplete="new-password" required value={confirmacaoSenha} onChange={(event) => setConfirmacaoSenha(event.target.value)} /></label>{confirmacaoSenha && senha !== confirmacaoSenha && <p role="status">As senhas não coincidem.</p>}<div><button className="fp-button fp-admin-primary" disabled={!senha.trim() || senha !== confirmacaoSenha}>Alterar senha</button><button className="fp-button" type="button" onClick={() => { setEditandoSenha(false); setSenha(""); setConfirmacaoSenha(""); }}>Cancelar</button></div></form>}
     </div>
   );
 }
@@ -484,7 +528,7 @@ function EquipeCard({
   const [edicao, setEdicao] = useState(equipe);
 
   return (
-    <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
+    <div className="fp-admin-record">
       <div className="mb-4 font-bold text-slate-900">{equipe.numero_equipe}</div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -501,8 +545,8 @@ function EquipeCard({
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <button onClick={() => onSalvar(edicao)} className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white">Salvar</button>
-        <button onClick={() => onExcluir(equipe.id_equipe)} className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700"><Trash2 size={13} />Excluir</button>
+        <button onClick={() => onSalvar(edicao)} className="fp-button fp-admin-primary">Salvar</button>
+        <button onClick={() => onExcluir(equipe.id_equipe)} className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700"><Trash2 size={13} />Excluir</button>
       </div>
     </div>
   );

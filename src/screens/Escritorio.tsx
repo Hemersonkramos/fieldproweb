@@ -8,7 +8,6 @@ import {
 import {
   AlertTriangle,
   Check,
-  Crown,
   Camera,
   FileText,
   Images,
@@ -21,8 +20,18 @@ import {
   Wifi,
   Wrench,
   X,
+  MapPin,
+  Menu,
+  Home,
+  Map as MapIcon,
+  Users,
+  Settings,
+  LogOut,
+  ChevronDown,
+  RefreshCw,
 } from "lucide-react";
-import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
+import { MapContainer, Marker, Popup, TileLayer, ScaleControl, useMap } from "react-leaflet";
+import "./Escritorio.css";
 import L from "leaflet";
 import type { UsuarioWeb } from "../App";
 import { API_BASE_URL, authFetch, authUrl } from "../lib/api";
@@ -716,6 +725,11 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
   const [equipeFiltro, setEquipeFiltro] = useState<string[]>([]);
   const [equipeFiltroAberto, setEquipeFiltroAberto] = useState(false);
   const [busca, setBusca] = useState("");
+  const [municipioFiltro, setMunicipioFiltro] = useState("");
+  const [buscaEquipe, setBuscaEquipe] = useState("");
+  const [abaEquipe, setAbaEquipe] = useState<"todas" | "online" | "offline">("todas");
+  const [menuRecolhido, setMenuRecolhido] = useState(() => window.matchMedia("(max-width: 700px)").matches);
+  const [secaoAtiva, setSecaoAtiva] = useState("visao-geral");
   const [acaoEmAndamentoId, setAcaoEmAndamentoId] = useState<number | null>(null);
   const [demandaEmEdicao, setDemandaEmEdicao] = useState<Demanda | null>(null);
   const [formulario, setFormulario] = useState<FormularioDemanda | null>(null);
@@ -1443,7 +1457,8 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
           demanda.solicitacao.toLowerCase().includes(termoBusca) ||
           demanda.cliente.toLowerCase().includes(termoBusca);
 
-        return filtroStatus && filtroTipo && filtroEquipe && filtroBusca;
+        return filtroStatus && filtroTipo && filtroEquipe && filtroBusca &&
+          (!municipioFiltro || demanda.municipio === municipioFiltro);
       })
       .sort((a, b) => {
         const prazoA = diferencaDiasPrazo(a.prazo);
@@ -1467,7 +1482,14 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
 
         return a.solicitacao.localeCompare(b.solicitacao);
       });
-  }, [busca, demandasBase, equipeFiltro, statusFiltro, tipoFiltro]);
+  }, [busca, demandasBase, equipeFiltro, statusFiltro, tipoFiltro, municipioFiltro]);
+
+  const municipios = [...new Set(demandasBase.map((demanda) => demanda.municipio).filter(Boolean))].sort();
+  const equipesVisiveis = equipes.filter((equipe) => {
+    const correspondeAba = abaEquipe === "todas" || (abaEquipe === "online" ? equipe.online : !equipe.online);
+    const termo = buscaEquipe.trim().toLocaleLowerCase("pt-BR");
+    return correspondeAba && `${equipe.nome} ${equipe.veiculo} ${equipe.placa}`.toLocaleLowerCase("pt-BR").includes(termo);
+  });
 
   const centroMapa = useMemo<[number, number]>(() => {
     const equipesComLocalizacao = equipes.filter(
@@ -1516,130 +1538,74 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
   }, [pontosLevantamento]);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#dff2fb_0%,_#f7fafc_42%,_#eef4f8_100%)] text-slate-900">
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
-        <header className="relative overflow-hidden rounded-[32px] border border-white/70 bg-gradient-to-br from-[#06263f] via-[#0a4d73] to-[#78b7c8] px-6 py-6 text-white shadow-[0_24px_80px_rgba(7,34,56,0.25)]">
-          <div className="absolute -right-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute -bottom-14 left-1/3 h-36 w-36 rounded-full bg-cyan-200/20 blur-3xl" />
-
-          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold tracking-[0.2em] uppercase text-cyan-100">
-                <Wifi size={14} />
-                Centro operacional
-              </div>
-
-              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
-                Escritorio FieldPro
-              </h1>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-cyan-50/90 sm:text-base">
-                Acompanhamento de equipes, demandas e serviços em campo.
-              </p>
-
-              <div className="mt-5 flex flex-wrap gap-3 text-sm">
-                <HeroChip label={`${dashboard.andamento} em execucao`} />
-                <HeroChip label={`${dashboard.emergenciais} emergenciais`} />
-                <HeroChip label={`${equipes.length} equipes mapeadas`} />
-              </div>
-            </div>
-
-            <div className="flex w-full flex-col gap-3 lg:w-auto lg:items-end">
-              <div className="flex flex-wrap gap-3 lg:justify-end">
-                <button
-                  onClick={abrirSolicitacao}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-[#083e5f] shadow-lg transition hover:bg-cyan-50"
-                >
-                  <Plus size={17} />
-                  Abrir solicitação
-                </button>
-
-                <button
-                  onClick={abrirSolicitacaoLote}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 text-sm font-semibold text-white shadow-lg backdrop-blur transition hover:bg-white/16"
-                >
-                  <FileText size={17} />
-                  Criar em lote
-                </button>
-
-                <button
-                  onClick={irParaProducao}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 text-sm font-semibold text-white shadow-lg backdrop-blur transition hover:bg-white/16"
-                >
-                  <Route size={17} />
-                  Produção e rotas
-                </button>
-              </div>
-
-              <div className="flex flex-wrap gap-2 lg:justify-end">
-                {usuario?.perfil === "admin" && irParaAdmin && (
-                  <button
-                    onClick={irParaAdmin}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-white/20 bg-[#06263f]/30 px-4 text-sm font-semibold text-white transition hover:bg-white/14"
-                  >
-                    <Crown size={16} />
-                    Administração
-                  </button>
-                )}
-
-                <button
-                  onClick={sair}
-                  className="inline-flex h-10 items-center justify-center rounded-full border border-white/18 px-4 text-sm font-semibold text-white/90 transition hover:bg-white/10"
-                >
-                  Sair
-                </button>
-              </div>
-            </div>
+    <div className={`fp-dashboard ${menuRecolhido ? "fp-sidebar-collapsed" : ""}`} id="visao-geral">
+      <aside className="fp-sidebar">
+        <div className="fp-sidebar-brand"><MapPin size={29} fill="#1c8cf0" strokeWidth={1.6} /><span>Field<b>Pro</b></span><button onClick={() => setMenuRecolhido(!menuRecolhido)} aria-label={menuRecolhido ? "Expandir menu" : "Recolher menu"} aria-expanded={!menuRecolhido}><Menu size={20} /></button></div>
+        <nav aria-label="Navegação principal">
+          {[{ id: "visao-geral", label: "Visão geral", icon: <Home size={21} /> }, { id: "solicitacoes", label: "Solicitações", icon: <FileText size={21} /> }, { id: "mapa", label: "Mapa", icon: <MapIcon size={21} /> }, { id: "equipes", label: "Equipes", icon: <Users size={21} /> }].map((item) => (
+            <a key={item.id} href={`#${item.id}`} title={item.label} className={secaoAtiva === item.id ? "is-active" : ""} aria-current={secaoAtiva === item.id ? "location" : undefined} onClick={() => setSecaoAtiva(item.id)}>{item.icon}<span>{item.label}</span></a>
+          ))}
+          <button onClick={irParaProducao} title="Produção e rotas"><Route size={21} /><span>Produção e rotas</span></button>
+          {usuario?.perfil === "admin" && irParaAdmin && <button onClick={irParaAdmin} title="Administração"><Settings size={21} /><span>Administração</span></button>}
+        </nav>
+        <div className="fp-sidebar-footer"><i className={erro ? "has-error" : ""} /><div><span>Centro operacional</span><strong>FieldPro</strong><small>{carregando ? "Sincronizando" : erro ? "Sem conexão com a API" : "Conectado"}</small></div></div>
+      </aside>
+      <div className="fp-workarea">
+        <header className="fp-topbar">
+          <div className="fp-page-title"><h1>Central de operações</h1><p>Acompanhamento de equipes, demandas e serviços em campo.</p></div>
+          <div className="fp-header-tools">
+            <label className="fp-municipality"><MapPin size={17} /><select aria-label="Filtrar por município" value={municipioFiltro} onChange={(event) => setMunicipioFiltro(event.target.value)}><option value="">Todos os municípios</option>{municipios.map((municipio) => <option key={municipio} value={municipio}>{municipio}</option>)}</select></label>
+            <label className="fp-search fp-header-search"><Search size={17} /><input aria-label="Buscar solicitação ou cliente" placeholder="Buscar solicitação ou cliente…" value={busca} onChange={(event) => setBusca(event.target.value)} /></label>
           </div>
+          <div className="fp-user-area"><details className="fp-user-menu"><summary><span className="fp-avatar">{usuario?.nome_completo.split(" ").filter(Boolean).slice(0, 2).map((nome) => nome[0]).join("") || "FP"}</span><span className="fp-user-name"><strong>{usuario?.nome_completo || "FieldPro"}</strong><small>{usuario?.perfil === "admin" ? "Administrador" : "Escritório"}</small></span><ChevronDown size={14} /></summary><div className="fp-user-dropdown"><button onClick={abrirSolicitacaoLote}><FileText size={16} />Criar solicitações em lote</button><button onClick={sair}><LogOut size={16} />Sair</button></div></details><button onClick={abrirSolicitacao} className="fp-new-request"><Plus size={18} />Nova solicitação</button></div>
         </header>
-
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="fp-content">
+        <section className="fp-metrics">
           <Card
-            titulo="Demandas em andamento"
+            titulo="Em andamento"
             valor={String(dashboard.andamento)}
-            tag="ativas"
+            tag="solicitações ativas"
             cor="sky"
             icone={<Wrench size={18} />}
           />
           <Card
-            titulo="Demandas fora do prazo"
+            titulo="Fora do prazo"
             valor={String(dashboard.foraPrazo)}
-            tag="atencao"
+            tag="solicitações em atraso"
             cor="rose"
             icone={<AlertTriangle size={18} />}
           />
           <Card
             titulo="Emergenciais"
             valor={String(dashboard.emergenciais)}
-            tag="prioridade"
+            tag="alta prioridade"
             cor="amber"
             icone={<ShieldAlert size={18} />}
           />
           <Card
             titulo="Equipes online"
             valor={`${dashboard.equipesOnline}/${equipes.length}`}
-            tag="GPS ligado"
+            tag="equipes conectadas"
             cor="emerald"
             icone={<Wifi size={18} />}
           />
         </section>
 
-        <section className="relative z-20 rounded-[28px] border border-slate-200/70 bg-white/80 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur">
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Filtros</h2>
-              <p className="text-sm text-slate-500">
-                Filtre por status, tipo, equipe ou nome.
-              </p>
+        <div className="fp-operation-grid">
+          <section id="mapa" className="fp-panel fp-map-panel">
+            <div className="fp-panel-heading">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Mapa operacional</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Equipes posicionadas, demandas abertas e prioridade visual por pin.
+                </p>
+              </div>
+
+              <span className={`fp-sync ${erro ? "fp-sync-error" : ""}`} role="status"><i />{carregando ? "Sincronizando…" : erro ? "Falha na sincronização" : "Dados sincronizados"}</span>
             </div>
 
-            <div className="rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-600">
-              {demandas.length === 1
-                ? "1 demanda exibida"
-                : `${demandas.length} demandas exibidas`}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
+                    <section className="office-filters fp-map-filters relative z-20">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <div className="relative z-30">
               <button
                 type="button"
@@ -1783,41 +1749,48 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
               ) : null}
             </div>
 
-            <div className="relative">
-              <Search size={16} className="absolute left-4 top-3.5 text-slate-400" />
-              <input
-                className="input w-full bg-slate-50 pl-10"
-                style={{ paddingLeft: 42 }}
-                placeholder="Buscar solicitacao ou cliente"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-              />
-            </div>
           </div>
+          {(statusFiltro.length > 0 || tipoFiltro.length > 0 || equipeFiltro.length > 0 || busca || municipioFiltro) && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+              {[
+                ...(municipioFiltro ? [{ label: `Município: ${municipioFiltro}`, remover: () => setMunicipioFiltro("") }] : []),
+                ...statusFiltro.map((valor) => ({ label: `Status: ${valor}`, remover: () => alternarStatusFiltro(valor) })),
+                ...tipoFiltro.map((valor) => ({ label: `Tipo: ${valor}`, remover: () => alternarTipoFiltro(valor) })),
+                ...equipeFiltro.map((valor) => ({ label: `Equipe: ${valor}`, remover: () => alternarEquipeFiltro(valor) })),
+                ...(busca ? [{ label: `Busca: ${busca}`, remover: () => setBusca("") }] : []),
+              ].map((filtro) => (
+                <button key={filtro.label} type="button" onClick={filtro.remover}
+                  aria-label={`Remover filtro ${filtro.label}`}
+                  className="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-sky-50 px-2.5 py-1.5 text-xs font-medium text-sky-800 transition hover:bg-sky-100">
+                  <span className="truncate">{filtro.label}</span><X size={13} className="shrink-0" />
+                </button>
+              ))}
+              <button type="button" onClick={() => {
+                setStatusFiltro([]);
+                setTipoFiltro([]);
+                setEquipeFiltro([]);
+                setBusca("");
+                setMunicipioFiltro("");
+                setStatusFiltroAberto(false);
+                setTipoFiltroAberto(false);
+                setEquipeFiltroAberto(false);
+              }} className="ml-auto rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100">
+                Limpar filtros
+              </button>
+            </div>
+          )}
         </section>
 
-        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.25fr_0.9fr]">
-          <section className="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
-            <div className="flex flex-col gap-4 border-b border-slate-200/70 bg-[linear-gradient(135deg,#f8fbfd_0%,#edf6fa_100%)] px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">Mapa operacional</h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  Equipes posicionadas, demandas abertas e prioridade visual por pin.
-                </p>
-              </div>
 
-              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-700">
-                Dados da API sincronizados
-              </span>
-            </div>
 
-            <div className="h-[470px] bg-slate-100">
+            <div className="fp-map-canvas">
               <MapContainer
                 center={centroMapa}
                 zoom={13}
                 scrollWheelZoom
                 style={{ height: "100%", width: "100%" }}
               >
+                <AjustarTamanhoMapa />
                 <TileLayer
                   attribution={SATELITE_ATTRIBUTION}
                   url={SATELITE_TILE_URL}
@@ -1866,20 +1839,24 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
                     </Popup>
                   </Marker>
                 ))}
+                <ScaleControl position="bottomleft" imperial={false} />
               </MapContainer>
+              <div className="fp-map-legend"><strong>Demandas no mapa</strong><span><i className="fp-dot-blue" />Em andamento</span><span><i className="fp-dot-red" />Emergencial</span><span><i className="fp-dot-orange" />Devolvida</span><span><i className="fp-dot-green" />Concluída / finalizada</span></div>
             </div>
           </section>
 
-          <section className="rounded-[30px] border border-slate-200/70 bg-white p-5 shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">Leitura rapida</h2>
-                <p className="text-sm text-slate-500">Resumo visual das equipes no campo.</p>
-              </div>
+<section id="equipes" className="fp-panel fp-teams-panel">
+            <div className="fp-panel-heading"><h2>Equipes em campo</h2><span className="fp-sync"><i />{equipes.length} equipes</span></div>
+            <div className="fp-team-tabs" role="group" aria-label="Filtrar equipes por conexão">
+              {(["todas", "online", "offline"] as const).map((aba) => (
+                <button key={aba} aria-pressed={abaEquipe === aba} className={abaEquipe === aba ? "is-active" : ""} onClick={() => setAbaEquipe(aba)}>
+                  {aba === "todas" ? "Todas" : aba === "online" ? "Online" : "Offline"} ({aba === "todas" ? equipes.length : equipes.filter((equipe) => aba === "online" ? equipe.online : !equipe.online).length})
+                </button>
+              ))}
             </div>
-
-            <div className="space-y-3">
-              {equipes.slice(0, 6).map((equipe) => (
+            <label className="fp-search fp-team-search"><Search size={16} /><input value={buscaEquipe} onChange={(event) => setBuscaEquipe(event.target.value)} aria-label="Buscar equipe ou veículo" placeholder="Buscar equipe ou veículo…" /></label>
+            <div className="fp-team-list">
+              {equipesVisiveis.map((equipe) => (
                 (() => {
                   const demandasAtivas =
                     demandasAtivasPorEquipe.get(String(equipe.id)) || 0;
@@ -1887,11 +1864,7 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
                   return (
                 <div
                   key={equipe.id}
-                  className={`rounded-2xl border p-4 ${
-                    demandasAtivas === 0
-                      ? "border-rose-200 bg-rose-50/80"
-                      : "border-slate-200 bg-slate-50/80"
-                  }`}
+                  className="fp-team-card"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -1902,7 +1875,7 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
                       <div className="mt-1 text-sm text-slate-500">Placa: {equipe.placa}</div>
                       <div
                         className={`mt-1 text-sm font-semibold ${
-                          demandasAtivas === 0 ? "text-rose-700" : "text-slate-700"
+                          demandasAtivas === 0 ? "text-slate-500" : "text-slate-700"
                         }`}
                       >
                         {demandasAtivas} demanda(s) em andamento/devolvido
@@ -1929,36 +1902,33 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
                 })()
               ))}
 
-              {equipes.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
-                  Nenhuma equipe encontrada.
-                </div>
+              {equipesVisiveis.length === 0 && (
+                <div className="fp-empty-teams"><Users size={48} strokeWidth={1.3} /><strong>{carregando ? "Carregando equipes…" : "Nenhuma equipe encontrada."}</strong><p>{buscaEquipe || abaEquipe !== "todas" ? "Tente outra busca ou altere o filtro de conexão." : erro ? "Não foi possível carregar as equipes. Tente atualizar os dados." : "As equipes cadastradas aparecerão aqui."}</p></div>
               )}
             </div>
           </section>
-        </section>
-
-        <section className="rounded-[30px] border border-slate-200/70 bg-white p-5 shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
+                </div>
+        <section id="solicitacoes" className="fp-panel fp-demands-panel">
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Todas as demandas</h2>
+              <h2 className="text-xl font-bold text-slate-900">Solicitações</h2>
               <p className="text-sm text-slate-500">
-                Lista operacional com status, prioridade e equipe responsavel.
+                Lista operacional com status, prioridade e equipe responsável.
               </p>
             </div>
 
             <button
               onClick={() => void carregarDados()}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold shadow-sm transition hover:border-sky-300 hover:text-sky-700"
+              className="fp-button"
             >
-              Atualizar
+              <RefreshCw size={15} /> Atualizar
             </button>
           </div>
 
           {carregando ? (
             <p className="py-12 text-center text-slate-500">Carregando dados da API...</p>
           ) : erro ? (
-            <div className="py-12 text-center font-medium text-red-600">{erro}</div>
+            <div className="fp-data-error" role="alert"><FileText size={32} strokeWidth={1.4} /><strong>Erro ao carregar dados.</strong><p>{erro}</p><span>Verifique sua conexão e tente atualizar.</span></div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
@@ -2073,6 +2043,7 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
           )}
         </section>
 
+        </div>
         {demandaEmEdicao && formulario && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
             <div className="relative z-[10000] max-h-[92vh] w-full max-w-5xl overflow-auto rounded-[30px] border border-white/70 bg-white shadow-[0_30px_100px_rgba(15,23,42,0.25)]">
@@ -2820,12 +2791,14 @@ function Campo({
   );
 }
 
-function HeroChip({ label }: { label: string }) {
-  return (
-    <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/90 backdrop-blur">
-      {label}
-    </span>
-  );
+function AjustarTamanhoMapa() {
+  const mapa = useMap();
+  useEffect(() => {
+    const observador = new ResizeObserver(() => mapa.invalidateSize());
+    observador.observe(mapa.getContainer());
+    return () => observador.disconnect();
+  }, [mapa]);
+  return null;
 }
 
 function Card({
@@ -2869,23 +2842,20 @@ function Card({
   }[cor];
 
   return (
-    <div className="relative overflow-hidden rounded-[28px] border border-white/70 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-      <div className="absolute right-0 top-0 h-20 w-20 rounded-full bg-slate-100/70 blur-2xl" />
-
-      <div className="relative flex items-start justify-between gap-4">
+    <div className={`fp-stat-card fp-stat-${cor}`}>
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-slate-500">{titulo}</p>
-          <div className="mt-3 text-4xl font-black tracking-tight text-slate-900">{valor}</div>
+          <p className="text-sm font-medium text-slate-600">{titulo}</p>
+          <div className="mt-2 text-3xl font-bold tracking-tight tabular-nums text-slate-900">{valor}</div>
         </div>
 
-        <div className={`rounded-2xl bg-gradient-to-br p-3 text-white shadow-lg ${estilos.fundo}`}>
+        <div className={`rounded-xl p-2.5 ${estilos.suave} ${estilos.texto}`}>
           {icone}
         </div>
       </div>
 
-      <div className="relative mt-5 flex items-center justify-between">
-        <span className={`rounded-full px-3 py-1 text-xs font-bold ${estilos.pill}`}>{tag}</span>
-        <span className={`text-xs font-semibold ${estilos.texto}`}>Atualizado agora</span>
+      <div className="mt-2">
+        <span className={`text-xs font-medium ${estilos.texto}`}>{tag}</span>
       </div>
     </div>
   );

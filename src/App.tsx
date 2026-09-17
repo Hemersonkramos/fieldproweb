@@ -60,12 +60,26 @@ export default function App() {
       {tela === "producao" && (
         <ProducaoWeb
           voltar={() => setTela("escritorio")}
+          usuario={usuario}
+          irParaAdmin={usuario?.perfil === "admin" ? () => setTela("admin") : undefined}
+          sair={() => {
+            limparToken();
+            setUsuario(import.meta.env.DEV ? criarUsuarioDemo() : null);
+            setTela(import.meta.env.DEV ? "escritorio" : "login");
+          }}
         />
       )}
 
       {tela === "admin" && usuario?.perfil === "admin" && (
         <AdminWeb
           voltar={() => setTela("escritorio")}
+          irParaProducao={() => setTela("producao")}
+          usuario={usuario}
+          sair={() => {
+            limparToken();
+            setUsuario(import.meta.env.DEV ? criarUsuarioDemo() : null);
+            setTela(import.meta.env.DEV ? "escritorio" : "login");
+          }}
         />
       )}
     </>

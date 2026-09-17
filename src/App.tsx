@@ -26,13 +26,24 @@ function criarUsuarioDemo(): UsuarioWeb {
 }
 
 export default function App() {
-  const [tela, setTela] = useState<Tela>(() => (import.meta.env.DEV ? "escritorio" : "login"));
+  const [tela, setTela] = useState<Tela>(() => {
+    const visualizarLogin = new URLSearchParams(window.location.search).get("tela") === "login";
+    return import.meta.env.DEV && !visualizarLogin ? "escritorio" : "login";
+  });
   const [usuario, setUsuario] = useState<UsuarioWeb | null>(() =>
     import.meta.env.DEV ? criarUsuarioDemo() : null,
   );
 
   return (
     <>
+      {import.meta.env.DEV && (
+        <a
+          href={tela === "login" ? window.location.pathname : "?tela=login"}
+          className="dev-screen-shortcut"
+        >
+          {tela === "login" ? "← Voltar ao escritório" : "Visualizar login"}
+        </a>
+      )}
       {tela === "login" && (
         <LoginWeb
           entrar={(usuarioLogado) => {

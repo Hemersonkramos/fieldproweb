@@ -1,149 +1,79 @@
-import { useState } from "react";
-
+import { useRef, useState, type FormEvent } from "react";
+import { AlertCircle, ArrowRight, Eye, EyeOff, LoaderCircle, LockKeyhole, MapPin, UserRound } from "lucide-react";
 import type { UsuarioWeb } from "../App";
 import { API_BASE_URL, salvarToken } from "../lib/api";
+import "./LoginWeb.css";
 
-type Props = {
-  entrar: (usuario: UsuarioWeb) => void;
-};
+type Props = { entrar: (usuario: UsuarioWeb) => void };
 
 export default function LoginWeb({ entrar }: Props) {
   const [user, setUser] = useState("");
   const [senha, setSenha] = useState("");
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [capsLock, setCapsLock] = useState(false);
+  const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
+  const enviando = useRef(false);
 
-  async function handleLogin() {
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (enviando.current) return;
+    if (!user.trim() || !senha) {
+      setErro("Informe seu usuário e sua senha.");
+      return;
+    }
+    enviando.current = true;
+    setCarregando(true);
+    setErro("");
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 20000);
     try {
-      setErro("");
-
       const res = await fetch(`${API_BASE_URL}/login-web`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ user, senha }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user: user.trim(), senha }),
+        signal: controller.signal,
       });
-
-      const data = await res.json();
-
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setErro(data.erro || "Erro ao logar");
+        setErro(typeof data?.erro === "string" ? data.erro : "Não foi possível entrar. Confira seus dados e tente novamente.");
         return;
       }
-
+      if (typeof data?.token !== "string" || !data.token || !data.usuario) {
+        setErro("O servidor retornou uma resposta inválida. Tente novamente.");
+        return;
+      }
       salvarToken(data.token);
       entrar({ ...(data.usuario as UsuarioWeb), token: data.token });
     } catch {
-      setErro("Erro ao conectar com servidor");
+      setErro(controller.signal.aborted
+        ? "O servidor demorou para responder. Tente novamente."
+        : "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.");
+    } finally {
+      window.clearTimeout(timeout);
+      enviando.current = false;
+      setCarregando(false);
     }
   }
 
   return (
-    <div
-      style={{
-        height: "100vh",
-        background: "linear-gradient(135deg, #0A3A63, #021B33)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <div
-        style={{
-          background: "#f8fafc",
-          padding: 30,
-          borderRadius: 20,
-          width: 340,
-          boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-          textAlign: "center",
-        }}
-      >
-        {/* Ícone */}
-        <div
-          style={{
-            width: 50,
-            height: 50,
-            background: "#0A3A63",
-            borderRadius: 12,
-            margin: "0 auto 10px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "white",
-            fontWeight: "bold",
-          }}
-        >
-          🗺️
-        </div>
-
-        <h2 style={{ margin: 0 }}>FieldPro Web</h2>
-        <p style={{ fontSize: 12, color: "#64748b", marginBottom: 20 }}>
-          Ambiente do escritório
-        </p>
-
-        <input
-          placeholder="Usuário"
-          value={user}
-          onChange={(e) => setUser(e.target.value)}
-          style={{
-            width: "100%",
-            padding: 12,
-            marginBottom: 10,
-            borderRadius: 10,
-            border: "1px solid #cbd5e1",
-            outline: "none",
-          }}
-        />
-
-        <input
-          placeholder="Senha"
-          type="password"
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
-          style={{
-            width: "100%",
-            padding: 12,
-            marginBottom: 10,
-            borderRadius: 10,
-            border: "1px solid #cbd5e1",
-            outline: "none",
-          }}
-        />
-
-        {erro && (
-          <p style={{ color: "red", fontSize: 12 }}>{erro}</p>
-        )}
-
-        <button
-          onClick={handleLogin}
-          style={{
-            width: "100%",
-            padding: 12,
-            borderRadius: 12,
-            border: "none",
-            background: "#0A3A63",
-            color: "white",
-            fontWeight: "bold",
-            cursor: "pointer",
-            marginTop: 10,
-          }}
-        >
-          Entrar
-        </button>
-
-        <div
-          style={{
-            marginTop: 15,
-            fontSize: 11,
-            color: "#94a3b8",
-            background: "#e2e8f0",
-            padding: 8,
-            borderRadius: 10,
-          }}
-        >
-        insira seus dados
-        </div>
-      </div>
-    </div>
+    <main className="fp-login">
+      <section className="fp-login-card" aria-labelledby="login-title">
+        <div className="fp-login-brand"><MapPin size={34} fill="#198bef" strokeWidth={1.6} aria-hidden="true" /><span>Field<b>Pro</b></span></div>
+        <div className="fp-login-heading"><span>AMBIENTE DO ESCRITÓRIO</span><h1 id="login-title">Acesse sua conta</h1></div>
+        <form onSubmit={(event) => void handleLogin(event)} aria-busy={carregando}>
+          <label className="fp-login-label" htmlFor="login-user">Usuário</label>
+          <div className="fp-login-field"><UserRound size={18} aria-hidden="true" /><input id="login-user" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} required placeholder="Digite seu usuário" value={user} readOnly={carregando} onChange={(event) => { setUser(event.target.value); setErro(""); }} /></div>
+          <label className="fp-login-label" htmlFor="login-password">Senha</label>
+          <div className="fp-login-field"><LockKeyhole size={18} aria-hidden="true" /><input id="login-password" name="password" type={mostrarSenha ? "text" : "password"} autoComplete="current-password" required placeholder="Digite sua senha" value={senha} readOnly={carregando} aria-describedby={capsLock ? "login-caps-lock" : undefined} onChange={(event) => { setSenha(event.target.value); setErro(""); }} onKeyDown={(event) => setCapsLock(event.getModifierState("CapsLock"))} onKeyUp={(event) => setCapsLock(event.getModifierState("CapsLock"))} onBlur={() => setCapsLock(false)} /><button className="fp-login-eye" type="button" aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"} title={mostrarSenha ? "Ocultar senha" : "Mostrar senha"} aria-controls="login-password" onClick={() => setMostrarSenha(!mostrarSenha)}>{mostrarSenha ? <EyeOff size={19} /> : <Eye size={19} />}</button></div>
+          {capsLock && <p id="login-caps-lock" className="fp-login-caps" role="status">Caps Lock está ativado.</p>}
+          {erro && <div className="fp-login-error" role="alert"><AlertCircle size={17} /><span>{erro}</span></div>}
+          <button type="submit" className="fp-login-submit" disabled={carregando}>{carregando ? <><LoaderCircle size={18} className="fp-login-spinner" />Entrando…</> : <>Entrar<ArrowRight size={18} /></>}</button>
+          <span className="fp-login-sr" role="status">{carregando ? "Validando seus dados. Aguarde." : ""}</span>
+        </form>
+        <details className="fp-login-help"><summary>Precisa de ajuda para acessar?</summary><p>Se esqueceu sua senha ou ainda não tem acesso, entre em contato com o administrador do FieldPro da sua organização.</p></details>
+        <footer className="fp-login-footer">Gestão de equipes e serviços em campo</footer>
+      </section>
+    </main>
   );
 }

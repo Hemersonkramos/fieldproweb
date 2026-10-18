@@ -34,6 +34,10 @@
 .fp-production-team:hover { border-color: #9db9d1; background: #f5f9fc; }
 .fp-production-team.is-selected { border-color: #498dc1; background: #f0f7fc; box-shadow: inset 3px 0 #337fb6; }
 .fp-production-team strong.text-base { font-size: 14px; }
+.fp-production-trip-times { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #dce5ee; }
+.fp-production-trip-times span { display: block; color: #627b9e; font-size: 11px; }
+.fp-production-trip-times strong { display: block; margin-top: 4px; color: #183857; font-size: 12px; overflow-wrap: anywhere; }
+.fp-production-trip-times small { grid-column: 1 / -1; color: #627b9e; font-size: 10px; }
 .fp-production-mini { border-top: 1px solid #dce5ee; padding-top: 8px; }
 .fp-production-empty { display: flex; align-items: center; justify-content: center; min-height: 260px; padding: 24px; border: 1px solid #dce5ee; border-radius: 6px; background: #f8fafc; text-align: center; color: #627b9e; font-size: 13px; }
 .fp-production button:disabled { opacity: 0.6; }

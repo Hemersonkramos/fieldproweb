@@ -39,6 +39,8 @@ type ProducaoApi = {
   veiculo?: string | null;
   placa?: string | null;
   status?: string | null;
+  inicio_deslocamento?: string | null;
+  fim_deslocamento?: string | null;
 };
 
 type Producao = {
@@ -50,6 +52,8 @@ type Producao = {
   veiculo: string;
   placa: string;
   status: string;
+  inicio_deslocamento: string | null;
+  fim_deslocamento: string | null;
 };
 
 type RotaPonto = [number, number];
@@ -78,6 +82,8 @@ function normalizarProducao(dados: ProducaoApi[]) {
     veiculo: item.veiculo || "Veiculo nao informado",
     placa: item.placa || "-",
     status: item.status || "Offline",
+    inicio_deslocamento: item.inicio_deslocamento ?? null,
+    fim_deslocamento: item.fim_deslocamento ?? null,
   })) satisfies Producao[];
 }
 
@@ -93,6 +99,17 @@ function montarParametrosPeriodo(dataInicial: string, dataFinal: string) {
   }
 
   return parametros;
+}
+
+function formatarHorarioDeslocamento(valor: string | null) {
+  if (!valor) return "Sem registro";
+  const data = new Date(valor);
+  if (!Number.isFinite(data.getTime())) return "Sem registro";
+  return data.toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
 }
 
 async function buscarProducao(dataInicial: string, dataFinal: string) {
@@ -506,6 +523,17 @@ export default function ProducaoWeb({ voltar, usuario, irParaAdmin, sair }: Prop
                       <MiniCard titulo="KM" valor={item.km.toFixed(1)} />
                       <MiniCard titulo="Pontos" valor={item.pontos} />
                       <MiniCard titulo="Concl./Final." valor={item.notas} />
+                    </div>
+                    <div className="fp-production-trip-times">
+                      <div title="Primeiro ponto registrado no período selecionado">
+                        <span>Início do deslocamento</span>
+                        <strong>{formatarHorarioDeslocamento(item.inicio_deslocamento)}</strong>
+                      </div>
+                      <div title="Último ponto registrado no período selecionado">
+                        <span>Fim do deslocamento</span>
+                        <strong>{formatarHorarioDeslocamento(item.fim_deslocamento)}</strong>
+                      </div>
+                      <small>Horário de Brasília · primeiro e último registro no período</small>
                     </div>
                   </button>
                 ))}

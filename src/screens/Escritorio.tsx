@@ -482,9 +482,9 @@ const iconesDemanda = {
   }),
 };
 
-const iconePontoLevantamento = L.divIcon({
+const iconePontoLevantamento = (ordem: number) => L.divIcon({
   className: "fieldpro-point-pin",
-  html: '<span class="fieldpro-point-pin__inner"></span>',
+  html: `<span class="fieldpro-point-pin__inner"></span><span class="fieldpro-point-pin__label">P.${Number(ordem)}</span>`,
   iconSize: [22, 22],
   iconAnchor: [11, 11],
   popupAnchor: [0, -10],
@@ -2334,11 +2334,11 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
                         >
                           <TileLayer attribution={SATELITE_ATTRIBUTION} url={SATELITE_TILE_URL} />
 
-                          {pontosLevantamento.map((ponto) => (
+                          {pontosLevantamento.map((ponto, index) => (
                             <Marker
                               key={`mapa-ponto-${ponto.id}`}
                               position={[Number(ponto.latitude), Number(ponto.longitude)]}
-                              icon={iconePontoLevantamento}
+                              icon={iconePontoLevantamento(ponto.ordem_ponto || index + 1)}
                             >
                               <Popup>
                                 <strong>Ponto {ponto.ordem_ponto || ponto.id}</strong>

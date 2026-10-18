@@ -132,6 +132,7 @@ textarea {
 .fieldpro-point-pin {
   background: transparent;
   border: 0;
+  overflow: visible;
 }
 
 .fieldpro-point-pin::before {
@@ -139,15 +140,28 @@ textarea {
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  background: #0f172a;
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.78), 0 6px 16px rgba(15, 23, 42, 0.26);
+  border: 2px solid #ffff00;
+  box-shadow: 0 0 0 1px #161600, inset 0 0 0 1px #161600;
 }
 
 .fieldpro-point-pin__inner {
   position: absolute;
-  inset: 6px;
+  inset: 5px;
   border-radius: 999px;
-  background: #38bdf8;
+  border: 2px solid #ffff00;
+  box-shadow: 0 0 0 1px #161600, inset 0 0 0 1px #161600;
+}
+
+.fieldpro-point-pin__label {
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #ffff00;
+  font: 700 16px/1.15 Arial, sans-serif;
+  white-space: nowrap;
+  text-shadow: -1px -1px 0 #161600, 1px -1px 0 #161600,
+    -1px 1px 0 #161600, 1px 1px 0 #161600;
 }
 
 .fieldpro-team-dot {

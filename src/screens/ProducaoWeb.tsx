@@ -15,7 +15,7 @@ import {
   ChevronDown,
   LogOut,
 } from "lucide-react";
-import { MapContainer, Marker, Polyline, Popup, TileLayer, ScaleControl, useMap } from "react-leaflet";
+import { MapContainer, Polyline, TileLayer, ScaleControl, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { API_BASE_URL, authFetch } from "../lib/api";
@@ -427,11 +427,6 @@ export default function ProducaoWeb({ voltar, usuario, irParaAdmin, sair }: Prop
                     }}
                   />
 
-                  {rota.map((posicao, index) => (
-                    <Marker key={`${posicao[0]}-${posicao[1]}-${index}`} position={posicao}>
-                      <Popup>{index === 0 ? "Início da rota" : `Ponto ${index + 1}`}</Popup>
-                    </Marker>
-                  ))}
                 </MapContainer>
               ) : (
                 <CentralMessage mensagem="Nenhuma rota encontrada para esta equipe." />

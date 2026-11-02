@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { KeyRound, Plus, Shield, Trash2, UserCog, Users, Wrench, MapPin, Menu, Home, Route, Settings, ChevronDown, LogOut, RefreshCw, Search } from "lucide-react";
+import { confirmar, mensagemDeErro, notificar } from "../lib/feedback";
 import { API_BASE_URL, authFetch } from "../lib/api";
 import type { UsuarioWeb } from "../App";
 import "./Escritorio.css";
@@ -187,7 +188,7 @@ export default function AdminWeb({ voltar, irParaProducao, usuario, sair }: Prop
   }
 
   async function excluirUsuario(id: number) {
-    if (!window.confirm("Deseja excluir este usuário?")) {
+    if (!(await confirmar({ titulo: "Excluir este usuário?", mensagem: "Ele perderá o acesso ao FieldPro.", confirmarTexto: "Excluir", perigo: true }))) {
       return false;
     }
 
@@ -243,7 +244,7 @@ export default function AdminWeb({ voltar, irParaProducao, usuario, sair }: Prop
   }
 
   async function excluirEquipe(id: number) {
-    if (!window.confirm("Deseja excluir esta equipe?")) {
+    if (!(await confirmar({ titulo: "Excluir esta equipe?", mensagem: "As solicitações da equipe ficarão sem equipe atribuída.", confirmarTexto: "Excluir", perigo: true }))) {
       return false;
     }
 
@@ -268,10 +269,13 @@ export default function AdminWeb({ voltar, irParaProducao, usuario, sair }: Prop
       const resultado = await acao();
       if (resultado === false) return false;
       setFeedback({ tipo: "sucesso", texto: "Alteração realizada com sucesso." });
+      notificar("Alteração realizada com sucesso.", "sucesso");
       return true;
     } catch (error) {
       console.error(error);
-      setFeedback({ tipo: "erro", texto: error instanceof Error ? error.message : "Erro ao executar ação." });
+      const texto = mensagemDeErro(error, "Erro ao executar ação.");
+      setFeedback({ tipo: "erro", texto });
+      notificar(texto, "erro");
       return false;
     } finally {
       travaAcao.current = false;

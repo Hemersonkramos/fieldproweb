@@ -231,6 +231,8 @@ export default function ProducaoWeb({ voltar, usuario, irParaAdmin, sair }: Prop
     let ativo = true;
 
     const intervalo = window.setInterval(() => {
+      // Nao consulta a API com a aba em segundo plano.
+      if (document.visibilityState !== "visible") return;
       void buscarProducao(dataInicial, dataFinal)
         .then((producao) => {
           if (ativo) {

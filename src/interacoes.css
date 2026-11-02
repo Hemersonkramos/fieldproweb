@@ -1,0 +1,214 @@
+/* Interacoes globais do painel web: retorno visual em botoes, abas, cartoes e janelas. */
+
+/* No escritorio os avisos ficam no canto inferior direito. */
+/* "body" aumenta a especificidade: este arquivo carrega antes do feedback.css. */
+body .fpfb-toasts {
+  left: auto;
+  right: 24px;
+  bottom: 24px;
+  transform: none;
+  width: min(380px, calc(100vw - 32px));
+}
+
+@media (max-width: 700px) {
+  body .fpfb-toasts { right: 16px; left: 16px; width: auto; }
+}
+
+button,
+a,
+summary,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+button,
+.fp-button,
+.fp-new-request,
+.fp-sidebar nav a,
+.fp-sidebar nav button,
+.fp-user-dropdown button,
+.fp-team-tabs button,
+summary {
+  transition:
+    transform 0.12s ease,
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    filter 0.15s ease,
+    opacity 0.2s ease;
+}
+
+/* Clique: o botao "afunda" levemente. */
+button:not(:disabled):active,
+.fp-button:not(:disabled):active,
+summary:active {
+  transform: scale(0.97);
+}
+
+.fp-button:not(:disabled):hover,
+.fp-new-request:not(:disabled):hover {
+  box-shadow: 0 4px 14px rgba(11, 65, 108, 0.16);
+}
+
+.fp-new-request:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+button:disabled,
+.fp-button:disabled {
+  cursor: not-allowed !important;
+  opacity: 0.5;
+  filter: grayscale(0.3);
+  box-shadow: none !important;
+}
+
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #2994e1;
+  outline-offset: 2px;
+}
+
+/* Menu lateral: item ativo com barra de destaque que desliza. */
+.fp-sidebar nav a,
+.fp-sidebar nav button {
+  position: relative;
+}
+
+.fp-sidebar nav a::before,
+.fp-sidebar nav button::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 0;
+  border-radius: 0 3px 3px 0;
+  background: #5cc1ff;
+  transform: translateY(-50%);
+  transition: height 0.25s ease;
+}
+
+.fp-sidebar nav .is-active::before {
+  height: 60%;
+}
+
+.fp-sidebar nav a svg,
+.fp-sidebar nav button svg {
+  transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+
+.fp-sidebar nav a:hover svg,
+.fp-sidebar nav button:hover svg,
+.fp-sidebar nav .is-active svg {
+  transform: scale(1.12);
+}
+
+/* Abas das equipes (Todas / Online / Offline): sublinhado cresce ao ativar. */
+.fp-team-tabs button {
+  position: relative;
+  border-bottom-color: transparent !important;
+}
+
+.fp-team-tabs button::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -1px;
+  width: 0;
+  height: 2px;
+  background: #0b416c;
+  transform: translateX(-50%);
+  transition: width 0.25s ease;
+}
+
+.fp-team-tabs button:hover { color: #0b416c; background: #f5f9fc; }
+.fp-team-tabs button.is-active::after { width: 100%; }
+
+/* Cartoes e linhas reagem ao passar o mouse. */
+.fp-stat-card,
+.fp-team-card,
+.fp-panel {
+  transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+}
+
+.fp-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(11, 65, 108, 0.1);
+}
+
+.fp-team-card:hover {
+  border-color: #9cc3e4;
+  box-shadow: 0 6px 18px rgba(11, 65, 108, 0.1);
+}
+
+.fp-demands-panel tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.fp-demands-panel tbody tr:hover {
+  background: #f5f9fc;
+}
+
+/* Menu do usuario abre com animacao. */
+.fp-user-menu[open] .fp-user-dropdown {
+  animation: fp-surgir 0.18s ease-out both;
+}
+
+/* Janelas (nova solicitacao, edicao, levantamento) entram suavemente. */
+.fixed.inset-0.backdrop-blur-sm {
+  animation: fp-fade 0.18s ease-out both;
+}
+
+.fixed.inset-0.backdrop-blur-sm > * {
+  animation: fp-surgir 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+}
+
+/* Entrada de cada tela (escritorio, producao, administracao). */
+.fp-tela {
+  animation: fp-tela-entrar 0.25s ease-out both;
+}
+
+@keyframes fp-tela-entrar {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fp-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fp-surgir {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Indicador de carregamento para botoes. */
+.fp-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 8px;
+  vertical-align: -2px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: fp-girar 0.7s linear infinite;
+}
+
+@keyframes fp-girar {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,6 +1,8 @@
 import {
+  useDeferredValue,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ClipboardEvent as ReactClipboardEvent,
   type ReactNode,
@@ -34,6 +36,7 @@ import { MapContainer, Marker, Popup, TileLayer, ScaleControl, useMap } from "re
 import "./Escritorio.css";
 import L from "leaflet";
 import type { UsuarioWeb } from "../App";
+import { confirmar, mensagemDeErro, notificar } from "../lib/feedback";
 import { API_BASE_URL, authFetch, authUrl } from "../lib/api";
 
 type Props = {
@@ -708,6 +711,7 @@ function obterIconeDemanda(demanda: Demanda) {
 
 export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair }: Props) {
   const [demandasBase, setDemandasBase] = useState<Demanda[]>([]);
+  const assinaturaPainelRef = useRef("");
   const [equipes, setEquipes] = useState<EquipeMapa[]>([]);
   const [dashboard, setDashboard] = useState<Dashboard>({
     andamento: 0,
@@ -778,6 +782,7 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
       setErro("");
       const dados = await buscarDadosEscritorio();
 
+      assinaturaPainelRef.current = JSON.stringify(dados);
       setDemandasBase(dados.demandas);
       setEquipes(dados.equipes);
       setDashboard(dados.dashboard);
@@ -798,7 +803,17 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
         ? `Deseja finalizar a solicitação ${demanda.solicitacao}?`
         : `Deseja devolver a solicitação ${demanda.solicitacao}?`;
 
-    if (!window.confirm(mensagem)) {
+    const confirmado = await confirmar({
+      titulo: mensagem,
+      mensagem:
+        proximoStatus === "Finalizada"
+          ? "A solicitação sai da lista de trabalho da equipe."
+          : "A solicitação volta para a equipe refazer o levantamento.",
+      confirmarTexto: proximoStatus === "Finalizada" ? "Finalizar" : "Devolver",
+      perigo: proximoStatus === "Devolvida",
+    });
+
+    if (!confirmado) {
       return;
     }
 
@@ -827,16 +842,19 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
 
       const demandaAtualizada = normalizarDemandas([dados.demanda])[0];
 
+      assinaturaPainelRef.current = "";
       setDemandasBase((atual) =>
         atual.map((item) => (item.id === demanda.id ? demandaAtualizada : item))
       );
+      notificar(
+        proximoStatus === "Finalizada"
+          ? `Solicitação ${demanda.solicitacao} finalizada.`
+          : `Solicitação ${demanda.solicitacao} devolvida para a equipe.`,
+        "sucesso"
+      );
     } catch (error) {
       console.error("Erro ao atualizar solicitação:", error);
-      window.alert(
-        error instanceof Error
-          ? error.message
-          : "Erro ao atualizar o status da solicitação."
-      );
+      notificar(mensagemDeErro(error, "Erro ao atualizar o status da solicitação."), "erro");
     } finally {
       setAcaoEmAndamentoId(null);
     }
@@ -891,9 +909,7 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
       setPontosLevantamento(dados);
     } catch (error) {
       console.error("Erro ao carregar levantamento:", error);
-      window.alert(
-        error instanceof Error ? error.message : "Erro ao carregar levantamento."
-      );
+      notificar(mensagemDeErro(error, "Erro ao carregar levantamento."), "erro");
       setDemandaLevantamento(null);
     } finally {
       setCarregandoLevantamento(false);
@@ -1046,12 +1062,10 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
 
       await carregarDados();
       fecharSolicitacao();
-      window.alert("Solicitação criada com sucesso.");
+      notificar("Solicitação criada com sucesso.", "sucesso");
     } catch (error) {
       console.error("Erro ao criar solicitação:", error);
-      window.alert(
-        error instanceof Error ? error.message : "Erro ao abrir solicitação."
-      );
+      notificar(mensagemDeErro(error, "Erro ao abrir solicitação."), "erro");
     } finally {
       setSalvandoEdicao(false);
     }
@@ -1061,7 +1075,7 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
     const manterCompatibilidade = salvarNovaSolicitacao;
     void manterCompatibilidade;
     if (nomeSolicitacaoDuplicado) {
-      window.alert("Nome utilizado. Informe outra solicitação.");
+      notificar("Nome utilizado. Informe outra solicitação.", "aviso");
       return;
     }
 
@@ -1129,12 +1143,10 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
 
       await carregarDados();
       fecharSolicitacao();
-      window.alert("Solicitação criada com sucesso.");
+      notificar("Solicitação criada com sucesso.", "sucesso");
     } catch (error) {
       console.error("Erro ao criar solicitação:", error);
-      window.alert(
-        error instanceof Error ? error.message : "Erro ao abrir solicitação."
-      );
+      notificar(mensagemDeErro(error, "Erro ao abrir solicitação."), "erro");
     } finally {
       setSalvandoEdicao(false);
     }
@@ -1142,7 +1154,7 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
 
   async function importarSolicitacoesEmLote() {
     if (!planilhaLoteTexto.trim()) {
-      window.alert("Cole ou carregue uma planilha CSV antes de importar.");
+      notificar("Cole ou carregue uma planilha CSV antes de importar.", "aviso");
       return;
     }
 
@@ -1166,9 +1178,7 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
       await carregarDados();
     } catch (error) {
       console.error("Erro ao importar planilha:", error);
-      window.alert(
-        error instanceof Error ? error.message : "Erro ao importar solicitações em lote."
-      );
+      notificar(mensagemDeErro(error, "Erro ao importar solicitações em lote."), "erro");
     } finally {
       setImportandoLote(false);
     }
@@ -1189,9 +1199,7 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
       setAnexos(dados);
     } catch (error) {
       console.error("Erro ao carregar anexos:", error);
-      window.alert(
-        error instanceof Error ? error.message : "Erro ao carregar anexos da solicitação."
-      );
+      notificar(mensagemDeErro(error, "Erro ao carregar anexos da solicitação."), "erro");
     } finally {
       setCarregandoAnexos(false);
     }
@@ -1259,16 +1267,15 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
 
       const demandaAtualizada = normalizarDemandas([dados.demanda])[0];
 
+      assinaturaPainelRef.current = "";
       setDemandasBase((atual) =>
         atual.map((item) => (item.id === demandaEmEdicao.id ? demandaAtualizada : item))
       );
       fecharEdicao();
-      window.alert("Solicitação atualizada com sucesso.");
+      notificar("Solicitação atualizada com sucesso.", "sucesso");
     } catch (error) {
       console.error("Erro ao salvar solicitação:", error);
-      window.alert(
-        error instanceof Error ? error.message : "Erro ao salvar a solicitação."
-      );
+      notificar(mensagemDeErro(error, "Erro ao salvar a solicitação."), "erro");
     } finally {
       setSalvandoEdicao(false);
     }
@@ -1279,7 +1286,14 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
       return;
     }
 
-    if (!window.confirm(`Deseja excluir a solicitação ${demandaEmEdicao.solicitacao}?`)) {
+    const confirmado = await confirmar({
+      titulo: `Excluir a solicitação ${demandaEmEdicao.solicitacao}?`,
+      mensagem: "Os pontos, fotos e anexos dela também serão apagados. Essa ação não pode ser desfeita.",
+      confirmarTexto: "Excluir",
+      perigo: true,
+    });
+
+    if (!confirmado) {
       return;
     }
 
@@ -1294,13 +1308,13 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
         throw new Error(dados.erro || "Não foi possível excluir a solicitação.");
       }
 
+      assinaturaPainelRef.current = "";
       setDemandasBase((atual) => atual.filter((item) => item.id !== demandaEmEdicao.id));
       fecharEdicao();
+      notificar(`Solicitação ${demandaEmEdicao.solicitacao} excluída.`, "sucesso");
     } catch (error) {
       console.error("Erro ao excluir solicitação:", error);
-      window.alert(
-        error instanceof Error ? error.message : "Erro ao excluir a solicitação."
-      );
+      notificar(mensagemDeErro(error, "Erro ao excluir a solicitação."), "erro");
     } finally {
       setSalvandoEdicao(false);
     }
@@ -1352,9 +1366,10 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
       }
 
       setAnexos(dados.anexos);
+      notificar("Anexo(s) adicionado(s).", "sucesso");
     } catch (error) {
       console.error("Erro ao adicionar anexos:", error);
-      window.alert(error instanceof Error ? error.message : "Erro ao adicionar anexos.");
+      notificar(mensagemDeErro(error, "Erro ao adicionar anexos."), "erro");
     } finally {
       setSalvandoEdicao(false);
     }
@@ -1365,7 +1380,13 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
       return;
     }
 
-    if (!window.confirm("Deseja excluir este anexo?")) {
+    const confirmado = await confirmar({
+      titulo: "Excluir este anexo?",
+      confirmarTexto: "Excluir",
+      perigo: true,
+    });
+
+    if (!confirmado) {
       return;
     }
 
@@ -1387,9 +1408,10 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
       }
 
       setAnexos(dados.anexos);
+      notificar("Anexo excluído.", "sucesso");
     } catch (error) {
       console.error("Erro ao excluir anexo:", error);
-      window.alert(error instanceof Error ? error.message : "Erro ao excluir anexo.");
+      notificar(mensagemDeErro(error, "Erro ao excluir anexo."), "erro");
     } finally {
       setSalvandoEdicao(false);
     }
@@ -1409,9 +1431,15 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
             return;
           }
 
-          setDemandasBase(dados.demandas);
-          setEquipes(dados.equipes);
-          setDashboard(dados.dashboard);
+          // A atualizacao automatica so troca o estado se algo mudou: evita
+          // redesenhar a lista e o mapa a cada minuto sem necessidade.
+          const assinatura = JSON.stringify(dados);
+          if (assinatura !== assinaturaPainelRef.current) {
+            assinaturaPainelRef.current = assinatura;
+            setDemandasBase(dados.demandas);
+            setEquipes(dados.equipes);
+            setDashboard(dados.dashboard);
+          }
           setErro("");
         })
         .catch((error) => {
@@ -1432,16 +1460,33 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
 
     carregarPainel(true);
 
-    const intervalo = window.setInterval(() => carregarPainel(false), 60 * 1000);
+    // Atualizacao automatica so com a aba visivel; ao voltar para a aba, atualiza na hora.
+    let ultimaAtualizacao = Date.now();
+    const atualizarSeVisivel = () => {
+      if (document.visibilityState !== "visible") return;
+      ultimaAtualizacao = Date.now();
+      carregarPainel(false);
+    };
+    const intervalo = window.setInterval(atualizarSeVisivel, 60 * 1000);
+    const aoMudarVisibilidade = () => {
+      if (document.visibilityState === "visible" && Date.now() - ultimaAtualizacao > 30 * 1000) {
+        atualizarSeVisivel();
+      }
+    };
+    document.addEventListener("visibilitychange", aoMudarVisibilidade);
 
     return () => {
       ativo = false;
       window.clearInterval(intervalo);
+      document.removeEventListener("visibilitychange", aoMudarVisibilidade);
     };
   }, []);
 
+  // A busca filtra centenas de demandas e redesenha o mapa: com useDeferredValue a
+  // digitacao continua fluida e o filtro acompanha logo em seguida.
+  const buscaAdiada = useDeferredValue(busca);
   const demandas = useMemo(() => {
-    const termoBusca = busca.trim().toLowerCase();
+    const termoBusca = buscaAdiada.trim().toLowerCase();
 
     return demandasBase
       .filter((demanda) => {
@@ -1460,9 +1505,13 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
         return filtroStatus && filtroTipo && filtroEquipe && filtroBusca &&
           (!municipioFiltro || demanda.municipio === municipioFiltro);
       })
-      .sort((a, b) => {
-        const prazoA = diferencaDiasPrazo(a.prazo);
-        const prazoB = diferencaDiasPrazo(b.prazo);
+      // Calcula o prazo uma vez por demanda, e nao a cada comparacao da ordenacao.
+      .map((demanda) => ({ demanda, prazo: diferencaDiasPrazo(demanda.prazo) }))
+      .sort((itemA, itemB) => {
+        const a = itemA.demanda;
+        const b = itemB.demanda;
+        const prazoA = itemA.prazo;
+        const prazoB = itemB.prazo;
 
         if (prazoA === null && prazoB === null) {
           return a.solicitacao.localeCompare(b.solicitacao);
@@ -1481,8 +1530,9 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
         }
 
         return a.solicitacao.localeCompare(b.solicitacao);
-      });
-  }, [busca, demandasBase, equipeFiltro, statusFiltro, tipoFiltro, municipioFiltro]);
+      })
+      .map((item) => item.demanda);
+  }, [buscaAdiada, demandasBase, equipeFiltro, statusFiltro, tipoFiltro, municipioFiltro]);
 
   const municipios = [...new Set(demandasBase.map((demanda) => demanda.municipio).filter(Boolean))].sort();
   const equipesVisiveis = equipes.filter((equipe) => {
@@ -1527,6 +1577,56 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
 
     return contagem;
   }, [demandasBase]);
+
+  // Os marcadores so sao recriados quando equipes/demandas mudam. Antes, qualquer
+  // estado da tela (digitar num formulario, abrir um filtro) refazia todos os marcadores.
+  const marcadoresMapa = useMemo(() => (
+    <>
+                {equipes.map((equipe) => (
+                  equipe.possuiLocalizacao ? (
+                    <Marker
+                      key={equipe.id}
+                      position={[equipe.latitude as number, equipe.longitude as number]}
+                      icon={equipe.online ? iconeEquipeOnline : iconeEquipeOffline}
+                    >
+                      <Popup>
+                        <strong>{equipe.nome}</strong>
+                        <br />
+                        {equipe.status}
+                        <br />
+                        Veiculo: {equipe.veiculo}
+                        <br />
+                        Placa: {equipe.placa}
+                      </Popup>
+                    </Marker>
+                  ) : null
+                ))}
+
+                {demandas.map((demanda) => (
+                  <Marker
+                    key={demanda.id}
+                    position={[demanda.latitude, demanda.longitude]}
+                    icon={obterIconeDemanda(demanda)}
+                  >
+                    <Popup>
+                      <strong>{demanda.solicitacao}</strong>
+                      <br />
+                      Cliente: {demanda.cliente}
+                      <br />
+                      Municipio: {demanda.municipio}
+                      <br />
+                      Equipe: {demanda.equipe}
+                      <br />
+                      Prioridade: {demanda.prioridade}
+                      <br />
+                      Status: {demanda.status}
+                      <br />
+                      Prazo: {descreverPrazo(demanda.prazo)}
+                    </Popup>
+                  </Marker>
+                ))}
+    </>
+  ), [demandas, equipes]);
 
   const centroLevantamento = useMemo<[number, number]>(() => {
     if (pontosLevantamento.length === 0) {
@@ -1796,49 +1896,7 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
                   url={SATELITE_TILE_URL}
                 />
 
-                {equipes.map((equipe) => (
-                  equipe.possuiLocalizacao ? (
-                    <Marker
-                      key={equipe.id}
-                      position={[equipe.latitude as number, equipe.longitude as number]}
-                      icon={equipe.online ? iconeEquipeOnline : iconeEquipeOffline}
-                    >
-                      <Popup>
-                        <strong>{equipe.nome}</strong>
-                        <br />
-                        {equipe.status}
-                        <br />
-                        Veiculo: {equipe.veiculo}
-                        <br />
-                        Placa: {equipe.placa}
-                      </Popup>
-                    </Marker>
-                  ) : null
-                ))}
-
-                {demandas.map((demanda) => (
-                  <Marker
-                    key={demanda.id}
-                    position={[demanda.latitude, demanda.longitude]}
-                    icon={obterIconeDemanda(demanda)}
-                  >
-                    <Popup>
-                      <strong>{demanda.solicitacao}</strong>
-                      <br />
-                      Cliente: {demanda.cliente}
-                      <br />
-                      Municipio: {demanda.municipio}
-                      <br />
-                      Equipe: {demanda.equipe}
-                      <br />
-                      Prioridade: {demanda.prioridade}
-                      <br />
-                      Status: {demanda.status}
-                      <br />
-                      Prazo: {descreverPrazo(demanda.prazo)}
-                    </Popup>
-                  </Marker>
-                ))}
+                {marcadoresMapa}
                 <ScaleControl position="bottomleft" imperial={false} />
               </MapContainer>
               <div className="fp-map-legend"><strong>Demandas no mapa</strong><span><i className="fp-dot-blue" />Em andamento</span><span><i className="fp-dot-red" />Emergencial</span><span><i className="fp-dot-orange" />Devolvida</span><span><i className="fp-dot-green" />Concluída / finalizada</span></div>
@@ -2396,6 +2454,8 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
                                 <img
                                   src={authUrl(foto.caminho_arquivo)}
                                   alt={foto.nome_arquivo}
+                                  loading="lazy"
+                                  decoding="async"
                                   className="h-44 w-full object-cover"
                                 />
                                 <div className="p-3">

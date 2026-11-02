@@ -37,6 +37,7 @@ import "./Escritorio.css";
 import L from "leaflet";
 import type { UsuarioWeb } from "../App";
 import { confirmar, mensagemDeErro, notificar } from "../lib/feedback";
+import BuscaEndereco, { type EnderecoSelecionado } from "./BuscaEndereco";
 import { API_BASE_URL, authFetch, authUrl } from "../lib/api";
 
 type Props = {
@@ -960,6 +961,26 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
     setNovaSolicitacao((atual) => ({ ...atual, [campo]: valor }));
   }
 
+  // Endereco escolhido na busca (ou no mapa): preenche coordenadas e municipio e
+  // registra o endereco na primeira linha dos detalhes, que a equipe ve no app.
+  function aplicarEnderecoNovaSolicitacao(local: EnderecoSelecionado) {
+    setNovaSolicitacao((atual) => {
+      const municipioLista = MUNICIPIOS_PIAUI.find(
+        (municipio) => municipio.toLocaleLowerCase("pt-BR") === local.municipio.toLocaleLowerCase("pt-BR")
+      );
+      const detalhesSemEndereco = atual.detalhes.replace(/^Endereço: .*(\r?\n)?/, "");
+      return {
+        ...atual,
+        latitude: String(local.latitude),
+        longitude: String(local.longitude),
+        municipio: municipioLista ?? (local.municipio || atual.municipio),
+        detalhes: local.endereco
+          ? `Endereço: ${local.endereco}${detalhesSemEndereco ? `\n${detalhesSemEndereco}` : ""}`
+          : atual.detalhes,
+      };
+    });
+  }
+
   function adicionarArquivosNaNovaSolicitacao(files: File[]) {
     const arquivosValidos = files.filter(
       (file) =>
@@ -1281,13 +1302,18 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
     }
   }
 
-  async function excluirSolicitacao() {
-    if (!demandaEmEdicao) {
+  // Exclusao de solicitacoes: somente administrador (a API tambem confere).
+  const podeExcluirSolicitacao = usuario?.perfil === "admin";
+
+  async function excluirSolicitacao(alvo?: Demanda) {
+    const demanda = alvo ?? demandaEmEdicao;
+
+    if (!demanda || !podeExcluirSolicitacao) {
       return;
     }
 
     const confirmado = await confirmar({
-      titulo: `Excluir a solicitação ${demandaEmEdicao.solicitacao}?`,
+      titulo: `Excluir a solicitação ${demanda.solicitacao}?`,
       mensagem: "Os pontos, fotos e anexos dela também serão apagados. Essa ação não pode ser desfeita.",
       confirmarTexto: "Excluir",
       perigo: true,
@@ -1299,24 +1325,26 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
 
     try {
       setSalvandoEdicao(true);
-      const resposta = await authFetch(`${API_BASE_URL}/escritorio/solicitacoes/${demandaEmEdicao.id}`, {
+      setAcaoEmAndamentoId(demanda.id);
+      const resposta = await authFetch(`${API_BASE_URL}/escritorio/solicitacoes/${demanda.id}`, {
         method: "DELETE",
       });
-      const dados = (await resposta.json()) as { erro?: string };
+      const dados = (await resposta.json().catch(() => ({}))) as { erro?: string };
 
       if (!resposta.ok) {
         throw new Error(dados.erro || "Não foi possível excluir a solicitação.");
       }
 
       assinaturaPainelRef.current = "";
-      setDemandasBase((atual) => atual.filter((item) => item.id !== demandaEmEdicao.id));
-      fecharEdicao();
-      notificar(`Solicitação ${demandaEmEdicao.solicitacao} excluída.`, "sucesso");
+      setDemandasBase((atual) => atual.filter((item) => item.id !== demanda.id));
+      if (demandaEmEdicao?.id === demanda.id) fecharEdicao();
+      notificar(`Solicitação ${demanda.solicitacao} excluída.`, "sucesso");
     } catch (error) {
       console.error("Erro ao excluir solicitação:", error);
       notificar(mensagemDeErro(error, "Erro ao excluir a solicitação."), "erro");
     } finally {
       setSalvandoEdicao(false);
+      setAcaoEmAndamentoId(null);
     }
   }
 
@@ -2084,6 +2112,18 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
                             </button>
                             </>
                           ) : null}
+                          {podeExcluirSolicitacao && (
+                            <button
+                              onClick={() => void excluirSolicitacao(demanda)}
+                              disabled={acaoEmAndamentoId === demanda.id}
+                              title="Excluir solicitação (somente administrador)"
+                              aria-label={`Excluir a solicitação ${demanda.solicitacao}`}
+                              className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 transition hover:border-rose-300 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <Trash2 size={13} />
+                              Excluir
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -2109,7 +2149,9 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
                 <div>
                   <h3 className="text-2xl font-bold text-slate-900">Editar solicitação</h3>
                   <p className="text-sm text-slate-500">
-                    Atualize dados, status, equipe, anexos e exclusão da demanda.
+                    {podeExcluirSolicitacao
+                      ? "Atualize dados, status, equipe, anexos e exclusão da demanda."
+                      : "Atualize dados, status, equipe e anexos da demanda."}
                   </p>
                 </div>
 
@@ -2308,6 +2350,7 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
                     )}
                   </div>
 
+                  {podeExcluirSolicitacao && (
                   <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4">
                     <div className="text-base font-bold text-rose-800">Excluir solicitação</div>
                     <p className="mt-1 text-sm text-rose-700">
@@ -2323,6 +2366,7 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
                       Excluir solicitação
                     </button>
                   </div>
+                  )}
                 </div>
               </div>
 
@@ -2597,6 +2641,11 @@ export default function Escritorio({ irParaProducao, irParaAdmin, usuario, sair 
                     ))}
                   </select>
                 </label>
+                <BuscaEndereco
+                  latitude={novaSolicitacao.latitude}
+                  longitude={novaSolicitacao.longitude}
+                  aoSelecionar={aplicarEnderecoNovaSolicitacao}
+                />
                 <Campo
                   label="Latitude"
                   value={novaSolicitacao.latitude}
